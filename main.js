@@ -67,3 +67,35 @@ function StartProgram(start_id){
         id = id.next_block
     }
 }
+
+
+
+
+
+
+
+
+
+
+class TestBlock {
+    constructor(id, element) {
+        this.id = id;
+        this.element = element;
+        this.past_block = null;
+        this.next_block = null;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const startBtn = document.getElementById('start');
+    const actionBtn = document.getElementById('action');
+    
+    const startBlock = new TestBlock('start', startBtn);
+    const actionBlock = new TestBlock('action', actionBtn);
+});
+
+function StartProgram() {
+    alert('start_program');
+}
+
+document.getElementById('start_btn').addEventListener('click', StartProgram);
