@@ -1,69 +1,111 @@
-
-function Addition(var1, var2){
-    return var1 + var2;
-}
-
-class StartBlock{
-    past_block = null;
-    next_block = null;
-
-    add_next_block(id){
-        this.next_block = id;
-    }
-    remove_next_block(){
-        //TODO: сделать эту функцию
-    }
-}
-class EndBlock{
-    past_block = null;
-    next_block = null;
-    add_next_block(id){
-        this.next_block = id;
-    }
-    remove_next_block(){
-        //TODO: сделать эту функцию
-    }
-}
-
-class TestBlock{
-    past_block = null;
-    next_block = null
-    id = null;
-    constructor(id){
+class TestBlock {
+    constructor(id, element) {
         this.id = id;
-    }
-    add_next_block(id){
-        this.next_block = id;
-    }
-    remove_next_block(){
+        this.element = element;
+        this.past_block = null;
         this.next_block = null;
     }
-    add_past_block(id){
-        this.past_block = id;
-    }
-    remove_past_block(){
-        this.past_block = null;
-    }
-    //TODO: реализовать drag-and-drop
 }
 
-function StartProgram(start_id){
-    start_id.next_block = id
-    //TODO: if start_id = true:
-    alert("start_program")
-    while (true){
-        /* TODO: цикл взятия id из объектов-блоков.
-        TODO: реализовать case/switch.
-        */
-        print(id)
-        switch (id){
-            case "end":
-                alert("program ended")
-                break;
-            case "if_cycle":
+document.addEventListener('DOMContentLoaded', function() {
+    const startBtn = document.getElementById('start');
+    const actionBtn = document.getElementById('action');
+    
+    if (!startBtn || !actionBtn) {
+        console.error('Элементы блоков не найдены!');
+        return;
+    }
+    
+    const startBlock = new TestBlock('start', startBtn);
+    const actionBlock = new TestBlock('action', actionBtn);
+    
+    startBlock.next_block = actionBlock;
+    actionBlock.past_block = startBlock;
+    
+    console.log('Созданы блоки:');
+    console.log('Стартовый блок:', startBlock);
+    console.log('Блок действия:', actionBlock);
+    console.log('Связь: start.next_block =', startBlock.next_block.id);
+});
 
-            case "":
+function StartProgram() {
+    alert('Программа запущена!');
+    console.log('Программа выполнена пользователем.');
+}
+
+const startButton = document.getElementById('start_btn');
+if (startButton) {
+    startButton.addEventListener('click', StartProgram);
+} else {
+    console.error('Кнопка запуска не найдена!');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const blocks = document.querySelectorAll('.block');
+    
+    for (let block of blocks) {
+        if (block.id === 'start') {
+            block.dataset.type = 'start';
+            block.dataset.info = 'Начало программы';
+        } else if (block.id === 'action') {
+            block.dataset.type = 'action';
+            block.dataset.info = 'Основное действие';
         }
-        id = id.next_block
+        
+        console.log(`Блок ${block.id}:`, block.dataset);
     }
+});
+
+const blocksContainer = document.querySelector('.blocks-container');
+
+
+function getNextElement(cursorPositionY, currentElement) {
+    
+    const currentElementCoord = currentElement.getBoundingClientRect();
+    
+    const currentElementCenter = currentElementCoord.y + currentElementCoord.height / 2;
+
+    const nextElement = (cursorPositionY < currentElementCenter) 
+        ? currentElement 
+        : currentElement.nextElementSibling;
+    
+    return nextElement;
 }
+
+blocksContainer.addEventListener('dragstart', (evt) => {
+    evt.target.classList.add('dragging');
+    
+    evt.dataTransfer.setData('text/plain', evt.target.id);
+});
+
+blocksContainer.addEventListener('dragend', (evt) => {
+    
+    evt.target.classList.remove('dragging');
+});
+
+blocksContainer.addEventListener('dragover', (evt) => {
+    evt.preventDefault();
+
+    const activeElement = blocksContainer.querySelector('.dragging');
+    
+    const currentElement = evt.target.closest('.block');
+
+    if (!activeElement || !currentElement || activeElement === currentElement) {
+        return;
+    }
+
+    const nextElement = getNextElement(evt.clientY, currentElement);
+
+    if (nextElement && activeElement === nextElement.previousElementSibling) {
+        return;
+    }
+
+    blocksContainer.insertBefore(activeElement, nextElement);
+    
+    console.log('Новый порядок блоков:', 
+        Array.from(blocksContainer.children).map(el => el.id));
+});
+
+blocksContainer.addEventListener('drop', (evt) => {
+    evt.preventDefault();
+});

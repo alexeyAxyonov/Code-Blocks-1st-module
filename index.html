@@ -1,17 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <link rel="stylesheet" href="../styles/styles.css">
+    <title>Конструктор Scratch (Основы JS)</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <var></var>
-    <script src="../scripts/main.js"></script>
-    <span class="StartBlock" id = "start-block-placeholder-id">Press [placeholder] to start</span>
-    <!-- сделать event_listener для перетаскивания блоков -->
-    <span class="EndBlock" id = "end">end_block</span>
-    <button id = "start_btn" type="button" onclick="StartProgram('start-block-placeholder-id')">Start Program</button>
+    <div class="blocks-container">
+
+        <button class="block block-start" id="start" draggable="true">начало</button>
+        <button class="block block-action" id="action" draggable="true">действие</button>
+    </div>
+
+    <button id="start_btn">Запустить программу</button>
+    <script src="main.js"></script>
 </body>
 </html>
