@@ -7,11 +7,18 @@
     <link rel="stylesheet" href="../styles/styles.css">
 </head>
 <body>
-    <var></var>
-    <script src="../scripts/main.js"></script>
-    <span class="StartBlock" id = "start-block-placeholder-id">Press [placeholder] to start</span>
-    <!-- сделать event_listener для перетаскивания блоков -->
-    <span class="EndBlock" id = "end">end_block</span>
-    <button id = "start_btn" type="button" onclick="StartProgram('start-block-placeholder-id')">Start Program</button>
+    <div class = 'workspace'>
+        <div class = 'toolbar'>
+            <button type = 'button' id = 'start_button' class = 'btn btn_start'> <span>&#9654;</span>Начать</button>
+            <button type = 'button' id = 'stop_button' class = 'btn btn_stop'>Закончить</button>
+            <button type = 'button' id = 'clear_button', class = 'btn btn_clear'>🗑 Очистить</button>
+        </div>
+        <div>
+            <div class = 'sidebar'>
+            </div>
+        </div>
+        <div class = 'main_area'></div>
+    </div>
+    <script src = '../scripts/main.js'></script>
 </body>
 </html>
