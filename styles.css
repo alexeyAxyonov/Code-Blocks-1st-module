@@ -1,5 +1,12 @@
-.StartBlock{
-    width: 100%;
+start-block{
     border: 10px solid black;
-    
+}
+
+.sidebar{
+    overflow-y: scroll; 
+    width: 150px;
+    height: 100vh; /*Высота равна высоте окна.*/
+    padding: 3px;
+    border: 1px black;
+    border-radius: 10px;
 }
