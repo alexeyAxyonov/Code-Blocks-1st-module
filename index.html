@@ -3,42 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <link rel="stylesheet" href="../styles/styles.css">
-</head>
-<body>
-    <var></var>
-    <script src="../scripts/main.js"></script>
-    <span class="StartBlock" id = "start-block-placeholder-id">Press [placeholder] to start</span>
-    <!-- сделать event_listener для перетаскивания блоков -->
-    <span class="EndBlock" id = "end">end_block</span>
-    <button id = "start_btn" type="button" onclick="StartProgram('start-block-placeholder-id')">Start Program</button>
-</body>
-</html>
-
-
-
-
-
-
-
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scratch Blocks</title>
     <link rel="stylesheet" href="styles.css">
+    <title>Document</title>
 </head>
 <body>
-    <div class="blocks-container">
-        <button class="block" id="start">start</button>
-        <button class="block" id="action">action</button>
+    <header class="header">
+            <button type = 'button' id = 'start_button' class = 'btn btn_start'> <span>&#9654;</span>Начать</button>
+            <button type = 'button' id = 'stop_button' class = 'btn btn_stop'>Закончить</button>
+            <button type = 'button' id = 'clear_button', class = 'btn btn_clear'>🗑 Очистить</button>
+    </header>
+    <div class="app">
+        <aside class="palette">
+            <p class="col-title">
+                Блоки:
+            </p>
+            <p class="group-label">
+                Переменные
+            </p>
+            <div class="palette-block" draggable="true" data-type="declare">
+                Обьявить переменные
+            </div>
+            <div class="palette-block" draggable="true" data-type="assign">
+                Присвоить значение
+            </div>
+            <div class="palette-block" draggable="true" data-type="declare">
+                If()
+            </div>
+            <div class="palette-block" draggable="true" data-type="assign">
+                Вывести
+            </div>
+        </aside>
+
+        <main class="workspace">
+            <div class="ws-block block-start">Начало программы</div>
+            <div class="drop-zone">
+                <span class="drop-hint">
+                    Блоки перетаскивать сюда
+                </span>
+            </div>
+            <div class="ws-block block-end">Конец программы</div>
+        </main>
+
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <p class="col-title">
+                    Переменные:
+                </p>
+                <div id="vars-display">
+                    <p class="empty-text">
+                        Переменных нет
+                    </p>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <p class="col-title">
+                    Вывод:
+                </p>
+                <div id="output">
+                    <p class="empty-text">
+                        Нажми "Запустить"
+                    </p>
+                </div>
+            </div>
+        </aside>
     </div>
-    
-    <button id="start_btn">Запустить программу</button>
-    
-    <script src="main.js"></script>
+    <scrip src="main.js"></script>
+
 </body>
 </html>
