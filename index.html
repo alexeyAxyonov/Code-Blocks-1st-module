@@ -4,41 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <link rel="stylesheet" href="../styles/styles.css">
-</head>
-<body>
-    <var></var>
-    <script src="../scripts/main.js"></script>
-    <span class="StartBlock" id = "start-block-placeholder-id">Press [placeholder] to start</span>
-    <!-- сделать event_listener для перетаскивания блоков -->
-    <span class="EndBlock" id = "end">end_block</span>
-    <button id = "start_btn" type="button" onclick="StartProgram('start-block-placeholder-id')">Start Program</button>
-</body>
-</html>
-
-
-
-
-
-
-
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scratch Blocks</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="blocks-container">
-        <button class="block" id="start">start</button>
-        <button class="block" id="action">action</button>
+    <header class = 'header'>
+        <button type = 'button' id = 'start_button' class = 'btn btn_start'> <span>&#9654;</span>Начать</button>
+        <button type = 'button' id = 'stop_button' class = 'btn btn_stop'>Закончить</button>
+        <button type = 'button' id = 'clear_button', class = 'btn btn_clear'>🗑 Очистить</button>
+    </header>
+    <div class = 'app'>
+        <div>
+            <div id = 'sidebar'>
+                <ul class = 'block_list'>
+                    <li class = 'block-item start-block'>Начало программы</li>
+                    <li class = 'block-item '></li>
+                    <li class = 'block-item end-block'>Конец программы</li>
+                </ul>
+                <button type = 'button' id = 'add_vars' class = 'btn'> Добавить переменные</button>
+                <ul class = 'var_list'>
+
+                </ul>
+                <button type = 'button' id = 'add_arr' class = 'btn'> Добавить массив</button>
+            </div>
+        </div>
+        <div class = 'drop-zone'>
+
+        </div>
     </div>
-    
-    <button id="start_btn">Запустить программу</button>
-    
-    <script src="main.js"></script>
+    <script src = 'main.js'></script>
 </body>
 </html>
