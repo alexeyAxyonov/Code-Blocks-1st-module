@@ -1,101 +1,633 @@
 
-function Addition(var1, var2){
-    return var1 + var2;
+let variables = {
+    data: {},
+    metadata: {},
+
+    get_variable(var_name){
+        return this.data[var_name];
+    },
+
+    set_variable(var_name, value){
+        this.data[var_name] = value;
+    },
+
+    is_variable_name(var_name){
+        //Проверяет, существует ли уже название var_name в data
+        if (!this.data[var_name]){
+            return false;
+        }
+        else{
+            return true;
+        }
+    }
+};
+let arrays = {
+    data: {},
+    metadata: {},
+
+    get_array(arr_name){
+        return this.data[arr_name];
+    },
+
+    make_array(arr_name, length, values=[]){
+        if (!this.data[arr_name]){
+            this.data[arr_name] = new FixedArray(length, values);
+        }
+        else{
+            //Универсальная ошибка. Текст: "Массив [arr_name] уже существует"
+        }
+    },
+
+    set_array(arr_name, values){
+        this.data[arr_name].fill(values);
+    },
+
+    is_array_name(arr_name){
+        //Проверяет, существует ли уже название arr_name в data
+        if (!this.data[arr_name]){
+            return false;
+        }
+        else{
+            return true;
+        }
+    }
+};
+
+class FixedArray {
+    constructor(length, elements=[]) {
+        this._length = length;
+        this._data = [...elements];
+        Object.defineProperty(this, 'length', {
+            get: () => this._length,
+            enumerable: true,
+            configurable: false
+        });
+    }
+
+    fill(elements){
+        //Оператор присваивания такой, т.к. перегрузки в js не существует
+        if (elements.length <= this._length){
+            this._data = [...elements];
+        }
+        else{
+            //Универсальная ошибка. Текст: "Количество значений превышает длину массива"
+        }
+    }
+    
+    get(index) {
+        if (index < 0 || index >= this._length) {
+            //Универсальная ошибка. Текст: "Индекс вне диапазона"
+        }
+        return this._data[index];
+    }
+    
+    set(index, value) {
+        if (index < 0 || index >= this._length) {
+            //Универсальная ошибка. Текст: "Индекс вне диапазона"
+        }
+        this._data[index] = value;
+    }
+    
+    [Symbol.iterator]() {
+        //Делает массив итерируемым
+        return this._data[Symbol.iterator]();
+    }
+    
+    toArray() {
+        //Возвращает все данные в виде списка
+        return [...this._data];
+    }
 }
 
-class StartBlock{
-    past_block = null;
-    next_block = null;
-
-    add_next_block(id){
-        this.next_block = id;
+function is_valid_variable_name(str_var){
+        const forbidden_characters = [
+        'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger',
+        'default', 'delete', 'do', 'else', 'export', 'extends', 'finally',
+        'for', 'function', 'if', 'import', 'in', 'instanceof', 'new',
+        'return', 'super', 'switch', 'this', 'throw', 'try', 'typeof',
+        'var', 'void', 'while', 'with', 'yield',
+        'let', 'static', 'implements', 'interface', 'package', 'private',
+        'protected', 'public', 'await'];
+        
+        if (forbidden_characters.includes(str_var)){
+            return false;
+        }
+        const regex = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+        if (!regex.test(str_var)){
+            return false;
+        }
+        
+        if (variables.is_variable_name(str_var) || 
+            arrays.is_array_name(str_var)){
+                return false;
+        }
+        return true;
     }
-    remove_next_block(){
-        //TODO: сделать эту функцию
+
+function VariablePopUp(){
+
+}
+
+function ArrayPopUp(){
+
+}
+
+function AddVariables(vars){
+    //Получает список переменных из variables
+    let intermediate_value = vars.split(/\s*,\s*/).filter(item => item !== '');
+    for (let i = 0; i < intermediate_value.length; i++){
+        if (is_valid_variable_name(intermediate_value[i])){
+            variables.set_variable(intermediate_value[i], 0);
+            //TODO: добавить объекты VariableBlock.
+        }
+        else{
+            //Универсальная ошибка. Текст: "Невозможно создать переменную с названием [intermediate_value[i]]"
+        }
     }
 }
-class EndBlock{
-    past_block = null;
-    next_block = null;
-    add_next_block(id){
-        this.next_block = id;
+
+function AddArray(arr_name, len){
+    if (is_valid_variable_name(arr_name)){
+        arrays.make_array(arr_name, len);
+        //TODO: добавить объект ArrayBlock (по сути тот же VariableBlock, но обращается он
+        //к arrays а не к variables)
     }
-    remove_next_block(){
-        //TODO: сделать эту функцию
+    else{
+        //Универсальная ошибка. Текст: "Невозможно создать массив с названием [arr_name]"
     }
 }
 
-class TestBlock{
-    past_block = null;
-    next_block = null
-    id = null;
-    constructor(id){
+//Всё что за этим комментом возможно нужно разбросать в отдельный файл
+
+class BaseBlock{
+    //Если хотите изменить поведение всех блоков в целом, то изменяйте этот класс. От него будут наследоваться все остальные блоки
+    /* Планируемое поведение BaseBlock:
+    1. Drag-and-drop
+    2. Подсветка при неправильной интерпретации
+    3. */
+
+    constructor(id, type, element = null){
+        this.past_block = undefined;
+        this.next_block = undefined;
         this.id = id;
+        this.type = type;
+        this.element = element;
+        this.x = 0;
+        this.y = 0;
+        this.width = 100;
+        this.height = 40;
     }
-    add_next_block(id){
-        this.next_block = id;
+    add_next_block(block){
+        if (this.next_block){
+            this.remove_next_block();
+        }
+        this.next_block = block;
+        if (block){
+            block.past_block = this;
+        }
     }
     remove_next_block(){
-        this.next_block = null;
+        if (this.next_block){
+            this.next_block.past_block = undefined;
+            this.next_block = undefined;
+        }
     }
-    add_past_block(id){
-        this.past_block = id;
+    add_past_block(block){
+        if (this.past_block){
+            this.remove_past_block();
+        }
+        this.past_block = block;
+        if (block){
+            block.next_block = this;
+        }
     }
     remove_past_block(){
-        this.past_block = null;
-    }
-    //TODO: реализовать drag-and-drop
-}
-
-function StartProgram(start_id){
-    start_id.next_block = id
-    //TODO: if start_id = true:
-    alert("start_program")
-    while (true){
-        /* TODO: цикл взятия id из объектов-блоков.
-        TODO: реализовать case/switch.
-        */
-        print(id)
-        switch (id){
-            case "end":
-                alert("program ended")
-                break;
-            case "if_cycle":
-
-            case "":
+        if(this.past_block){
+            this.past_block.next_block = undefined;
+            this.past_block = undefined;
         }
-        id = id.next_block
+    }
+
+    insert_after(block) {
+        if (!block) return;
+        
+        const oldNext = this.next_block;
+        
+        this.add_next_block(block);
+        
+        if (oldNext) {
+            block.add_next_block(oldNext);
+        }
+    }
+
+    insert_before(block) {
+        if (!block) return;
+        
+        if (this.past_block) {
+            this.past_block.insert_after(block);
+        } else {
+            block.add_next_block(this);
+        }
+    }
+
+    get_first_block() {
+        let current = this;
+        while (current.past_block) {
+            current = current.past_block;
+        }
+        return current;
+    }
+    
+    get_last_block() {
+        let current = this;
+        while (current.next_block) {
+            current = current.next_block;
+        }
+        return current;
+    }
+    
+    is_first() {
+        return !this.past_block;
+    }
+    
+    is_last() {
+        return !this.next_block;
+    }
+    
+
+    execute(args){
+        // Здесь ничего не будет, но в каждом блоке эта функция
+        // Будпет переписываться.
+    }
+
+    raise_error(error_text, error_type='force_stop'){
+        /*Вызывает ошибку в терминале. Значения error_type:
+        1. force_stop: Выводит ошибку и останавливает программу. Выделяет блок с ошибкой.
+        2. soft: Выводит ошибку, но программа продолжает работать (например, при
+        создании переменной/массива с неправильным названием*/
+    }
+}
+
+class StartBlock extends BaseBlock{
+}
+
+class EndBlock extends BaseBlock{
+}
+
+class ArithmeticOperationBlock extends BaseBlock {
+    constructor(id) {
+        super(id, 'arithmetic');
+        this.left = null;
+        this.right = null;
+    }
+
+    add_left(value){
+        this.left = value;
+    }
+
+    add_right(value){
+        this.right = value;
+    }
+
+    execute() {
+        const leftValue = this.get_value(this.left);
+        const rightValue = this.get_value(this.right);
+        
+        const result = this.operate(leftValue, rightValue);
+        
+        console.log(`Evaluated: ${leftValue} ${this.operator} ${rightValue} = ${result}`);
+        return result;
+    }
+
+    get_value(something) {
+        if (something instanceof ArithmeticOperationBlock) {
+            return something.execute();
+        }
+        
+        else if (something instanceof VariableBlock) {
+            return something.get_var_value();
+        }
+        
+        else {
+            return something;
+        }
+    }
+
+    operate(left, right) {
+
+    }
+}
+
+class EqualsBlock extends ArithmeticOperationBlock{
+    //Логический оператор сравнения
+    constructor(id){
+        super(id, "==");
+    }
+    operate(left, right){
+        return left === right;
+    }
+}
+
+class Plus extends ArithmeticOperationBlock{
+    constructor(id){
+        super(id, "+");
+    }
+
+    operate(left, right){
+        if (typeof left === 'string' || typeof right === 'string') {
+            return String(left) + String(right);
+        }
+        
+        return left + right;
+    }
+}
+
+class Minus extends ArithmeticOperationBlock {
+    constructor(id) {
+        super(id, '-');
+    }
+    
+    operate(left, right) {
+        return left - right;
+    }
+}
+
+class Multiply extends ArithmeticOperationBlock {
+    constructor(id) {
+        super(id, '*');
+    }
+    
+    operate(left, right) {
+        return left * right;
+    }
+}
+
+class Divide extends ArithmeticOperationBlock {
+    constructor(id) {
+        super(id, '/');
+    }
+    
+    operate(left, right) {
+        if (right === 0) {
+            // Универсальная ошибка: Деление на 0
+            return 0;
+        }
+        return left / right;
+    }
+}
+
+class Modulo extends ArithmeticOperationBlock {
+    constructor(id) {
+        super(id, '%');
+    }
+    
+    operate(left, right) {
+        if (right === 0) {
+            // Универсальная ошибка: модуль по нулю
+            return 0;
+        }
+        return left % right;
+    }
+}
+
+class Power extends ArithmeticOperationBlock {
+    constructor(id) {
+        super(id, '^');
+    }
+    
+    operate(left, right) {
+        return Math.pow(left, right);
+    }
+}
+
+class GreaterThanBlock extends ArithmeticOperationBlock {
+    constructor(id) {
+        super(id, '>');
+    }
+    
+    operate(left, right) {
+        return left > right;
+    }
+}
+
+class LessThanBlock extends ArithmeticOperationBlock {
+    constructor(id) {
+        super(id, '<');
+    }
+    
+    operate(left, right) {
+        return left < right;
+    }
+}
+
+class GreaterThanOrEqualBlock extends ArithmeticOperationBlock {
+    constructor(id) {
+        super(id, '>=');
+    }
+    
+    operate(left, right) {
+        return left >= right;
+    }
+}
+
+class LessThanOrEqualBlock extends ArithmeticOperationBlock {
+    constructor(id) {
+        super(id, '<=');
+    }
+    
+    operate(left, right) {
+        return left <= right;
+    }
+}
+
+class NotEqualsBlock extends ArithmeticOperationBlock {
+    constructor(id) {
+        super(id, '!=');
+    }
+    
+    operate(left, right) {
+        return left !== right;
+    }
+}
+
+class AndBlock extends ArithmeticOperationBlock {
+    constructor(id) {
+        super(id, '&&');
+    }
+    
+    operate(left, right) {
+        return Boolean(left) && Boolean(right);
+    }
+}
+
+class OrBlock extends ArithmeticOperationBlock {
+    constructor(id) {
+        super(id, '||');
+    }
+    
+    operate(left, right) {
+        return Boolean(left) || Boolean(right);
+    }
+}
+
+class NotBlock extends ArithmeticOperationBlock {
+    // Есть только один! дочерний элемент, а не два, как у остальных.
+    constructor(id) {
+        super(id, '!');
+    }
+    
+    execute() {
+        const value = this.get_value(this.left);
+        const result = !Boolean(value);
+        console.log(`Not: ${value} -> ${result}`);
+        return result;
+    }
+    
+    operate(left, right) {
+        return !Boolean(left);
     }
 }
 
 
+class AssignmentOperator extends ArithmeticOperationBlock{
+    execute(args){
+        let [var_name, value] = [args];
+        this.assign(var_name, value);
+    }
+    assign(var_name, value){
+        if (variables.get_variable(var_name)){
+            variables.set_variable(var_name, value);
+        }
+        else if (arrays.data.get_array(var_name)){
+            arrays.set_array(var_name, value);
+        }
+        else{
+            //Универсальная ошибка. Текст: "Переменной/массива [var_name] не существует"
+        }
+    }
+}
 
+class VariableBlock extends BaseBlock{
+    //Класс блоков с переменными. При наведении отображает значение
+    //TODO: сделать отображение значения при наведении.
 
+    constructor(id, name){
+        super(id, 'variable');
+        this.name = name;
+    }
 
+    get_var_value(){
+        variables.get_variable(this.name);
+    }
+    execute(){
 
+    }
+}
 
+class ArrayBlock extends BaseBlock{
 
+}
 
+class IfBlock extends BaseBlock{
 
-class TestBlock {
-    constructor(id, element) {
-        this.id = id;
-        this.element = element;
-        this.past_block = null;
-        this.next_block = null;
+}
+
+class ElseBlock extends BaseBlock{
+
+}
+
+class ForBlock extends BaseBlock{
+
+}
+
+class WhileBlock extends BaseBlock{
+
+}
+
+class BlockManager {
+    constructor() {
+        this.blocks = new Map();
+    }
+    
+    add_block(block) {
+        this.blocks.set(block.id, block);
+    }
+    
+    remove_block(id) {
+        const block = this.blocks.get(id);
+        if (block) {
+            block.detach_next();
+            block.detach_prev();
+            this.blocks.delete(id);
+        }
+    }
+    
+    clear() {
+        this.blocks.clear();
+    }
+
+    get_chain(startBlock) {
+        const chain = [];
+        let current = startBlock;
+        while (current) {
+            chain.push(current);
+            current = current.next_block;
+        }
+        return chain;
+    }
+}
+
+class RootUI{
+    constructor(){
+        this.manager = BlockManager();
+        this.drop_zone = document.querySelector('.drop-zone');
+        this.dragDropManager = new DragDropManager(this.manager, this.dropZone);
+
+        this.init();
+    }
+
+    init(){
+        document.getElementById('start_button').addEventListener('click', () => {
+            this.manager.run_program();
+        });
+        
+        document.getElementById('stop_button').addEventListener('click', () => {
+            console.log('Program stopped');
+        });
+        
+        document.getElementById('clear_button').addEventListener('click', () => {
+            this.manager.clear();
+        });
+        
+        document.getElementById('add_vars').addEventListener('click', () => {
+            VariablePopUp();
+        });
+        
+        document.getElementById('add_arr').addEventListener('click', () => {
+            ArrayPopUp();
+        });
+        this.manager.loadFromLocalStorage();
+    }
+
+    render_block(block_id){
+        // При создании нового блока его надо рендерить.
+    }
+
+    render_saved_blocks(){
+        /*Также юзер будет создавать переменные и массивы, их также надо сохранять и тут
+        распаковывать. */
+        //TODO: сделать систему сохранений и эту функцию заодно.
+    }
+    mainloop(){
+        const block = this.drop_zone.querySelector('.start-block');
+        while (block){
+            block.execute();
+            block = block.next_block;
+        }
     }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    const startBtn = document.getElementById('start');
-    const actionBtn = document.getElementById('action');
-    
-    const startBlock = new TestBlock('start', startBtn);
-    const actionBlock = new TestBlock('action', actionBtn);
+    window.app = new RootUI();
 });
 
-function StartProgram() {
-    alert('start_program');
-}
-
-document.getElementById('start_btn').addEventListener('click', StartProgram);
