@@ -1,36 +1,52 @@
-.StartBlock{
-    width: 100%;
-    border: 10px solid black;
-    
-}
-
-
-
-
-
-
-
-.blocks-container {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 20px;
-}
-
-.block {
-    background-color: #e0e0e0;
-    border: none;
-    border-radius: 20px;
-    padding: 12px 25px;
-    font-size: 18px;
-    font-family: Arial, sans-serif;
-    cursor: pointer;
-    width: fit-content;
-}
-
-#start_btn {
-    margin: 20px;
-    padding: 10px 20px;
+body {
+    font-family: "Tahoma", sans-serif;
     font-size: 16px;
-    cursor: pointer;
+    line-height: 22px;
+
+    background-color: #c0e8df;
+}
+
+ul {
+    list-style-type: none;
+}
+
+.block-item{
+    transition: background-color 0.5s;
+    margin-bottom: 10px;
+    padding: 5px;
+
+    text-align: center;
+    cursor: move;
+    transition: background-color 0.5s;
+}
+
+.selected {
+    opacity: 0.6;
+}
+
+.block_list:last-child {
+    margin-bottom: 0;
+}
+
+.start-block{
+    border: 2px  #0f3b0e;
+    border-radius: 12% 12% 0% 0%;
+    background-color: #2af906;
+}
+
+
+
+.end-block{
+    border: 2px  #0f3b0e;
+    border-radius: 0% 0% 12% 12%;
+    background-color: #f94b06;
+}
+
+
+#sidebar{
+    overflow-y: scroll; 
+    width: 150px;
+    height: 94vh; /*Высота равна высоте окна.*/
+    border: 1px black;
+    border-radius: 10px;
 }
