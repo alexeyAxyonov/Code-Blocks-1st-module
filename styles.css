@@ -18,7 +18,7 @@ ul {
     text-align: center;
     cursor: move;
     transition: background-color 0.5s;
-    list-style: none; /* ДОБАВЛЕНО: убирает чёрную точку */
+    list-style: none; /* Убирает чёрную точку */
 }
 
 .selected {
@@ -66,7 +66,7 @@ ul {
     width: 150px;
     cursor: move;
     z-index: 1;
-    list-style: none; /* ДОБАВЛЕНО: убирает чёрную точку */
+    list-style: none; /* Убирает чёрную точку */
 }
 
 .drop-indicator {
@@ -91,5 +91,5 @@ ul {
 .block-item {
     cursor: move;
     user-select: none;
-    list-style: none; /* ДОБАВЛЕНО: убирает чёрную точку */
+    list-style: none; /* Убирает чёрную точку */
 }

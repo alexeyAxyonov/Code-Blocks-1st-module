@@ -625,7 +625,7 @@ class BlockManager {
     }
 }
 
-// ДОБАВЛЕНО: класс для управления drag-and-drop
+// Класс для drag-and-drop
 class DragDropManager {
     constructor(blockManager, dropZone) {
         this.blockManager = blockManager;
@@ -644,14 +644,14 @@ class DragDropManager {
     }
 
     init() {
-        // Делаем все блоки в сайдбаре перетаскиваемыми
+        // Все блоки перетаскиваемые
         document.querySelectorAll('#sidebar .block-item').forEach(block => {
             block.setAttribute('draggable', 'true');
             block.addEventListener('dragstart', (e) => this.handleDragStart(e, block));
             block.addEventListener('dragend', () => this.handleDragEnd());
         });
 
-        // Обработчики для зоны сброса
+        // Для зоны сброса
         this.dropZone.addEventListener('dragover', (e) => this.handleDragOver(e));
         this.dropZone.addEventListener('drop', (e) => this.handleDrop(e));
     }
@@ -804,9 +804,16 @@ class RootUI{
         });
     }
 
-    render_block(block_id){}
+    render_block(block_id){
+         // При создании нового блока его надо рендерить.
+    }
 
-    render_saved_blocks(){}
+    
+    render_saved_blocks(){
+         /*Также юзер будет создавать переменные и массивы, их также надо сохранять и тут
+        распаковывать. */
+        //TODO: сделать систему сохранений и эту функцию заодно.
+    }
 
     mainloop(){
         const block = this.dropZone.querySelector('.start-block');
