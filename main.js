@@ -1,4 +1,3 @@
-
 let variables = {
     data: {},
     metadata: {},
@@ -547,6 +546,7 @@ class WhileBlock extends BaseBlock{
 class BlockManager {
     constructor() {
         this.blocks = new Map();
+        this.connections = new Map();
     }
     
     add_block(block) {
@@ -559,11 +559,13 @@ class BlockManager {
             block.detach_next();
             block.detach_prev();
             this.blocks.delete(id);
+            this.connections.delete(id);
         }
     }
     
     clear() {
         this.blocks.clear();
+        this.connections.clear();
     }
 
     get_chain(startBlock) {
@@ -575,12 +577,205 @@ class BlockManager {
         }
         return chain;
     }
+    
+    connectBlocks(block1, block2) {
+        if (!block1 || !block2) return;
+        
+        const id1 = block1.id || block1.textContent;
+        const id2 = block2.id || block2.textContent;
+        
+        if (!this.connections.has(id1)) {
+            this.connections.set(id1, []);
+        }
+        if (!this.connections.has(id2)) {
+            this.connections.set(id2, []);
+        }
+        
+        if (!this.connections.get(id1).includes(id2)) {
+            this.connections.get(id1).push(id2);
+        }
+        if (!this.connections.get(id2).includes(id1)) {
+            this.connections.get(id2).push(id1);
+        }
+        
+        console.log('Blocks connected:', id1, id2);
+    }
+    
+    disconnectBlocks(block1, block2) {
+        if (!block1 || !block2) return;
+        
+        const id1 = block1.id || block1.textContent;
+        const id2 = block2.id || block2.textContent;
+        
+        if (this.connections.has(id1)) {
+            this.connections.set(id1, this.connections.get(id1).filter(id => id !== id2));
+        }
+        if (this.connections.has(id2)) {
+            this.connections.set(id2, this.connections.get(id2).filter(id => id !== id1));
+        }
+        
+        console.log('Blocks disconnected:', id1, id2);
+    }
+    
+    areConnected(block1, block2) {
+        const id1 = block1.id || block1.textContent;
+        const id2 = block2.id || block2.textContent;
+        
+        return this.connections.has(id1) && this.connections.get(id1).includes(id2);
+    }
+}
+
+// ДОБАВЛЕНО: класс для управления drag-and-drop
+class DragDropManager {
+    constructor(blockManager, dropZone) {
+        this.blockManager = blockManager;
+        this.dropZone = dropZone;
+        this.draggedBlock = null;
+        this.dropIndicator = this.createDropIndicator();
+        this.snapThreshold = 30;
+        this.init();
+    }
+
+    createDropIndicator() {
+        const indicator = document.createElement('div');
+        indicator.className = 'drop-indicator';
+        this.dropZone.appendChild(indicator);
+        return indicator;
+    }
+
+    init() {
+        // Делаем все блоки в сайдбаре перетаскиваемыми
+        document.querySelectorAll('#sidebar .block-item').forEach(block => {
+            block.setAttribute('draggable', 'true');
+            block.addEventListener('dragstart', (e) => this.handleDragStart(e, block));
+            block.addEventListener('dragend', () => this.handleDragEnd());
+        });
+
+        // Обработчики для зоны сброса
+        this.dropZone.addEventListener('dragover', (e) => this.handleDragOver(e));
+        this.dropZone.addEventListener('drop', (e) => this.handleDrop(e));
+    }
+
+    handleDragStart(e, block) {
+        this.draggedBlock = block;
+        
+        e.dataTransfer.setData('text/plain', block.textContent);
+        e.dataTransfer.effectAllowed = 'move';
+        
+        block.classList.add('dragging');
+        
+        const rect = block.getBoundingClientRect();
+        this.offsetX = e.clientX - rect.left;
+        this.offsetY = e.clientY - rect.top;
+    }
+
+    handleDragEnd() {
+        if (this.draggedBlock) {
+            this.draggedBlock.classList.remove('dragging');
+            this.draggedBlock = null;
+        }
+        this.hideDropIndicator();
+    }
+
+    handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        
+        if (!this.draggedBlock) return;
+        
+        const dropZoneRect = this.dropZone.getBoundingClientRect();
+        const mouseX = e.clientX - dropZoneRect.left;
+        const mouseY = e.clientY - dropZoneRect.top;
+        
+        const blockX = mouseX - this.offsetX;
+        const blockY = mouseY - this.offsetY;
+        
+        if (this.draggedBlock.parentNode === this.dropZone) {
+            this.draggedBlock.style.left = blockX + 'px';
+            this.draggedBlock.style.top = blockY + 'px';
+            this.checkSnapping();
+        } else {
+            this.draggedBlock.style.left = blockX + 'px';
+            this.draggedBlock.style.top = blockY + 'px';
+        }
+    }
+
+    checkSnapping() {
+        const dropZoneRect = this.dropZone.getBoundingClientRect();
+        const draggedRect = this.draggedBlock.getBoundingClientRect();
+        
+        const otherBlocks = Array.from(this.dropZone.querySelectorAll('.block-item:not(.dragging)'));
+        
+        otherBlocks.forEach(block => {
+            const blockRect = block.getBoundingClientRect();
+            
+            const distanceBottomToTop = Math.abs(draggedRect.bottom - blockRect.top);
+            if (distanceBottomToTop < this.snapThreshold && 
+                this.isHorizontalOverlap(draggedRect, blockRect)) {
+                this.draggedBlock.style.top = (blockRect.top - dropZoneRect.top - this.draggedBlock.offsetHeight) + 'px';
+                if (!this.blockManager.areConnected(this.draggedBlock, block)) {
+                    this.blockManager.connectBlocks(this.draggedBlock, block);
+                }
+            }
+            
+            const distanceTopToBottom = Math.abs(draggedRect.top - blockRect.bottom);
+            if (distanceTopToBottom < this.snapThreshold && 
+                this.isHorizontalOverlap(draggedRect, blockRect)) {
+                this.draggedBlock.style.top = (blockRect.bottom - dropZoneRect.top) + 'px';
+                if (!this.blockManager.areConnected(this.draggedBlock, block)) {
+                    this.blockManager.connectBlocks(this.draggedBlock, block);
+                }
+            }
+        });
+    }
+
+    isHorizontalOverlap(rect1, rect2) {
+        return !(rect1.right < rect2.left || rect1.left > rect2.right);
+    }
+
+    hideDropIndicator() {
+        this.dropIndicator.style.display = 'none';
+    }
+
+    handleDrop(e) {
+        e.preventDefault();
+        
+        if (!this.draggedBlock) return;
+        
+        this.draggedBlock.classList.remove('dragging');
+        
+        const dropZoneRect = this.dropZone.getBoundingClientRect();
+        const mouseX = e.clientX - dropZoneRect.left;
+        const mouseY = e.clientY - dropZoneRect.top;
+        
+        const blockX = mouseX - this.offsetX;
+        const blockY = mouseY - this.offsetY;
+        
+        if (this.draggedBlock.parentNode === this.dropZone) {
+            console.log('Block moved within right zone');
+        } else {
+            const newBlock = this.draggedBlock.cloneNode(true);
+            newBlock.setAttribute('draggable', 'true');
+            
+            newBlock.addEventListener('dragstart', (e) => this.handleDragStart(e, newBlock));
+            newBlock.addEventListener('dragend', () => this.handleDragEnd());
+            
+            this.dropZone.appendChild(newBlock);
+            newBlock.style.left = blockX + 'px';
+            newBlock.style.top = blockY + 'px';
+            newBlock.id = 'block_' + Date.now() + '_' + Math.random();
+            
+            console.log('Block cloned from sidebar');
+        }
+        
+        this.hideDropIndicator();
+    }
 }
 
 class RootUI{
     constructor(){
-        this.manager = BlockManager();
-        this.drop_zone = document.querySelector('.drop-zone');
+        this.manager = new BlockManager();
+        this.dropZone = document.querySelector('.drop-zone');
         this.dragDropManager = new DragDropManager(this.manager, this.dropZone);
 
         this.init();
@@ -597,6 +792,7 @@ class RootUI{
         
         document.getElementById('clear_button').addEventListener('click', () => {
             this.manager.clear();
+            this.dropZone.innerHTML = '';
         });
         
         document.getElementById('add_vars').addEventListener('click', () => {
@@ -606,20 +802,14 @@ class RootUI{
         document.getElementById('add_arr').addEventListener('click', () => {
             ArrayPopUp();
         });
-        this.manager.loadFromLocalStorage();
     }
 
-    render_block(block_id){
-        // При создании нового блока его надо рендерить.
-    }
+    render_block(block_id){}
 
-    render_saved_blocks(){
-        /*Также юзер будет создавать переменные и массивы, их также надо сохранять и тут
-        распаковывать. */
-        //TODO: сделать систему сохранений и эту функцию заодно.
-    }
+    render_saved_blocks(){}
+
     mainloop(){
-        const block = this.drop_zone.querySelector('.start-block');
+        const block = this.dropZone.querySelector('.start-block');
         while (block){
             block.execute();
             block = block.next_block;
@@ -630,4 +820,3 @@ class RootUI{
 document.addEventListener('DOMContentLoaded', function() {
     window.app = new RootUI();
 });
-
