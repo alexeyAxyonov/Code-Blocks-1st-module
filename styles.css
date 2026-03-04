@@ -50,7 +50,7 @@ ul {
 }
 
 .drop-zone {
-    position: relative;
+    position: relative; /*абсолютное*/
     min-height: 400px;
     border: 2px dashed #4CAF50;
     border-radius: 10px;
@@ -59,7 +59,7 @@ ul {
 }
 
 .drop-zone .block-item {
-    position: absolute;
+    position: absolute; /*свободное*/
     margin: 0;
     background-color: #ffffff;
     border: 2px solid #0f3b0e;
@@ -92,4 +92,42 @@ ul {
     cursor: move;
     user-select: none;
     list-style: none; /* Убирает чёрную точку */
+}
+
+/* кнопка-ручка для перетаскивания группы */
+.block-item.connected .group-drag-handle {
+    position: absolute;
+    right: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 30px;
+    background-color: #ffaa00;
+    border-radius: 4px;
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    z-index: 20;
+}
+
+.block-item.connected:hover .group-drag-handle {
+    opacity: 0.8;
+}
+
+.group-drag-handle:hover {
+    opacity: 1 !important;
+    background-color: #ff9900;
+    transform: translateY(-50%) scale(1.1);
+}
+
+.group-drag-handle:active {
+    cursor: grabbing;
+    background-color: #ff8800;
+}
+
+/* выделение при групповом перетаскивании */
+.block-item.group-dragging {
+    outline: 2px solid #ffaa00;
+    outline-offset: 2px;
 }
