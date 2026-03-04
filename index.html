@@ -17,6 +17,12 @@
             <p class="col-title">
                 Блоки:
             </p>
+            <button type="button" id="add_vars" class="btn sidebar-btn">
+                &#43; Добавить переменные
+            </button>
+            <button type="button" id="add_arr" class="btn sidebar-btn">
+                &#43; Добавить массив
+            </button>
             <p class="group-label">
                 Переменные
             </p>
@@ -29,8 +35,11 @@
             <div class="palette-block" draggable="true" data-type="declare">
                 If()
             </div>
-            <div class="palette-block" draggable="true" data-type="assign">
+            <div class="palette-block" draggable="true" data-type="print">
                 Вывести
+            </div>
+            <div class="palette-block" draggable="true" data-type="input">
+                Ввести
             </div>
         </aside>
 
@@ -55,14 +64,24 @@
                     </p>
                 </div>
             </div>
-
             <div class="sidebar-section">
                 <p class="col-title">
                     Вывод:
                 </p>
                 <div id="output">
                     <p class="empty-text">
-                        Нажми "Запустить"
+                        ...
+                    </p>
+                </div>
+            </div>
+
+            <div class="sidebar-section error-section">
+                <p class="col-title">
+                    Ошибки:
+                </p>
+                <div id="output">
+                    <p class="empty-text">
+                        Ошибок нет
                     </p>
                 </div>
             </div>
