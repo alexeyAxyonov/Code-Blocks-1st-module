@@ -525,15 +525,89 @@ class VariableBlock extends BaseBlock{
 }
 
 class ArrayBlock extends BaseBlock{
-
+    constructor(id, name){
+        super(id, 'array');
+        this.name = name;
+    }
 }
 
 class IfBlock extends BaseBlock{
+    constructor(id, name){
+        super(id, 'if');
+        this.name = name;
+        this.condition = null;
+        this.then_branch = null;
+        this.else_branch = null;
+    }
 
-}
+    set_condition(condition){
+        this.condition = condition;
+    }
 
-class ElseBlock extends BaseBlock{
+    set_then_branch(block){
+        this.then_branch = block;
+        if(block){
+            block.past_block = this;
+        }
+    }
 
+    set_else_branch(block) {
+        this.else_branch = block;
+        if (block) {
+            block.past_block = this;
+        }
+    }
+
+    execute(args){
+        const condition_value = this.evaluate_condition();
+        
+        console.log(`If condition evaluated to: ${condition_value}`);
+        
+        if (condition_value) {
+            this.execute_branch(this.then_branch, args);
+        } else if (this.else_branch) {
+            this.execute_branch(this.else_branch, args);
+        }
+    }
+
+    evaluate_condition() {
+        if (this.condition instanceof ArithmeticOperationBlock) {
+            return this.condition.execute();
+        }
+        
+        else if (this.condition instanceof VariableBlock) {
+            return this.condition.get_var_value();
+        }
+        
+        else {
+            return Boolean(this.condition);
+        }
+    }
+
+    executeBranch(start_block, args) {
+        if (!start_block) return;
+        
+        let current = start_block;
+        let iterations = 0;
+        const max_iterations = 1000;
+        
+        while (current && iterations < max_iterations) {
+            const next_in_branch = current.next_block;
+            
+            current.execute(args);
+            
+            if (current instanceof ReturnBlock) {
+                break;
+            }
+            
+            current = next_in_branch;
+            iterations++;
+        }
+        
+        if (iterations >= max_iterations) {
+            this.raise_error('Количество вызовов превысило допустимое значение', 'soft');
+        }
+    }
 }
 
 class ForBlock extends BaseBlock{
@@ -541,9 +615,74 @@ class ForBlock extends BaseBlock{
 }
 
 class WhileBlock extends BaseBlock{
+    constructor(id){
+        super(id, 'while');
+        this.condition = null;
+        this.body_start = null;
+        this.max_iterations = 1000;
+    }
+    set_condition(condition) {
+        this.condition = condition;
+    }
 
+    set_body(block) {
+        this.body_start = block;
+        if (block) {
+            block.past_block = this;
+        }
+    }
+
+    execute(args) {
+        let iterations = 0;
+        
+        console.log('Начало цикла while');
+        
+        while (iterations < this.max_iterations) {
+            const condition_value = this.evaluate_condition();
+            
+            if (!condition_value) {
+                console.log(`Цикл while закончился после ${iterations} повторений`);
+                break;
+            }
+            
+            this.execute_body(args);
+            
+            iterations++;
+        }
+        
+        if (iterations >= this.max_iterations) {
+            this.raise_error(`Цикл while превысил максимальное количество повторений (${this.maxIterations})`, 'soft');
+        }
+    }
+
+    evaluate_condition() {
+        if (this.condition instanceof ArithmeticOperationBlock) {
+            return this.condition.execute();
+        }
+        
+        else if (this.condition instanceof VariableBlock) {
+            return this.condition.get_var_value();
+        }
+        
+        else {
+            return Boolean(this.condition);
+        }
+    }
+
+    execute_body(args) {
+        if (!this.body_start) return;
+        
+        let current = this.body_start;
+        
+        while (current) {
+            const next_in_body = current.next_block;
+            
+            current.execute(args);
+            
+            current = next_in_body;
+        }
+    }
 }
-
 class BlockManager {
     constructor() {
         this.blocks = new Map();
@@ -630,4 +769,5 @@ class RootUI{
 document.addEventListener('DOMContentLoaded', function() {
     window.app = new RootUI();
 });
+
 
