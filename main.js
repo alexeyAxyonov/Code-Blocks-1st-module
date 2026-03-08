@@ -1,4 +1,3 @@
-
 let variables = {
     data: {},
     metadata: {},
@@ -686,6 +685,7 @@ class WhileBlock extends BaseBlock{
 class BlockManager {
     constructor() {
         this.blocks = new Map();
+        this.connections = new Map(); //Место для соединения блоков
     }
     
     add_block(block) {
@@ -698,11 +698,13 @@ class BlockManager {
             block.detach_next();
             block.detach_prev();
             this.blocks.delete(id);
+            this.connections.delete(id);
         }
     }
     
     clear() {
         this.blocks.clear();
+        this.connections.clear();
     }
 
     get_chain(startBlock) {
@@ -714,12 +716,388 @@ class BlockManager {
         }
         return chain;
     }
+    
+    //Место для соединения блоков
+    connectBlocks(block1, block2) {
+        if (!block1 || !block2) return;
+        
+        const id1 = block1.id || block1.textContent;
+        const id2 = block2.id || block2.textContent;
+        
+        if (!this.connections.has(id1)) {
+            this.connections.set(id1, []);
+        }
+        if (!this.connections.has(id2)) {
+            this.connections.set(id2, []);
+        }
+        //связь блоков
+        if (!this.connections.get(id1).includes(id2)) {
+            this.connections.get(id1).push(id2);
+        }
+        if (!this.connections.get(id2).includes(id1)) {
+            this.connections.get(id2).push(id1);
+        }
+        
+        console.log('Blocks connected:', id1, id2);
+    }
+    //Разъединение блоков
+    disconnectBlocks(block1, block2) {
+        if (!block1 || !block2) return;
+        
+        const id1 = block1.id || block1.textContent;
+        const id2 = block2.id || block2.textContent;
+        //удаление связи 
+        if (this.connections.has(id1)) {
+            this.connections.set(id1, this.connections.get(id1).filter(id => id !== id2));
+        }
+        if (this.connections.has(id2)) {
+            this.connections.set(id2, this.connections.get(id2).filter(id => id !== id1));
+        }
+        
+        console.log('Blocks disconnected:', id1, id2);
+    }
+    //Проверка соединения
+    areConnected(block1, block2) {
+        const id1 = block1.id || block1.textContent;
+        const id2 = block2.id || block2.textContent;
+        
+        return this.connections.has(id1) && this.connections.get(id1).includes(id2);
+    }
+    
+    //проверка, есть ли у блока соединения
+    hasConnections(block) {
+        const id = block.id || block.textContent;
+        return this.connections.has(id) && this.connections.get(id).length > 0;
+    }
+}
+
+// Класс для drag-and-drop
+class DragDropManager {
+    constructor(blockManager, dropZone) {
+        this.blockManager = blockManager;
+        this.dropZone = dropZone;
+        this.draggedBlock = null; //текущий блок
+        this.draggedGroup = []; //группа блоков для группового перетаскивания
+        this.dropIndicator = this.createDropIndicator();
+        this.snapThreshold = 15;
+        this.init();
+    }
+
+    //индикатор куда можно сбросить 
+    createDropIndicator() {
+        const indicator = document.createElement('div');
+        indicator.className = 'drop-indicator';
+        this.dropZone.appendChild(indicator);
+        return indicator;
+    }
+
+    init() {
+        // Все блоки перетаскиваемые
+        document.querySelectorAll('#sidebar .block-item').forEach(block => {
+            block.setAttribute('draggable', 'true');
+            block.addEventListener('dragstart', (e) => this.handleDragStart(e, block));
+            block.addEventListener('dragend', () => this.handleDragEnd());
+        });
+
+        // Для зоны сброса
+        this.dropZone.addEventListener('dragover', (e) => this.handleDragOver(e));
+        this.dropZone.addEventListener('drop', (e) => this.handleDrop(e));
+    }
+
+    handleDragStart(e, block) {
+        // если это групповое перетаскивание, используем сохранённую группу
+        if (this.draggedGroup.length === 0) {
+            this.draggedBlock = block;//тащим этот блок
+            this.draggedGroup = [block];
+        }
+        
+        e.dataTransfer.setData('text/plain', block.textContent);
+        e.dataTransfer.effectAllowed = 'move';
+        
+        this.draggedGroup.forEach(b => b.classList.add('dragging'));
+        
+        const rect = block.getBoundingClientRect();//позиция блока
+        this.offsetX = e.clientX - rect.left;
+        this.offsetY = e.clientY - rect.top;
+    }
+
+    handleDragEnd() {
+        if (this.draggedBlock) {
+            this.draggedGroup.forEach(b => {
+                b.classList.remove('dragging');
+                b.classList.remove('group-dragging'); 
+            });
+            this.draggedBlock = null;
+            this.draggedGroup = []; 
+            this.groupPositions = null; 
+        }
+        this.hideDropIndicator();
+    }
+
+    handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        
+        if (!this.draggedBlock) return;
+        //координаты мыши для зоны сброса
+        const dropZoneRect = this.dropZone.getBoundingClientRect();
+        const mouseX = e.clientX - dropZoneRect.left;
+        const mouseY = e.clientY - dropZoneRect.top;
+        //позиция блока+мышь
+        const blockX = mouseX - this.offsetX;
+        const blockY = mouseY - this.offsetY;
+        //прилипание в правой зоне
+        if (this.draggedBlock.parentNode === this.dropZone) {
+            // если есть группа - перемещаем всю группу
+            if (this.draggedGroup.length > 1 && this.groupPositions) {
+                this.updateGroupPositions(this.groupPositions, blockX, blockY);
+            } else {
+                this.draggedBlock.style.left = blockX + 'px';
+                this.draggedBlock.style.top = blockY + 'px';
+            }
+            this.checkSnapping();
+        } else {
+            //позиция блока слева
+            this.draggedBlock.style.left = blockX + 'px';
+            this.draggedBlock.style.top = blockY + 'px';
+        }
+    }
+    
+    //Проверка: близко ли блок?
+    checkSnapping() {
+        const dropZoneRect = this.dropZone.getBoundingClientRect();
+        const draggedRect = this.draggedBlock.getBoundingClientRect();
+        
+        const otherBlocks = Array.from(this.dropZone.querySelectorAll('.block-item:not(.dragging)'));
+        
+        let snapped = false; // было ли прилипание?
+        
+        otherBlocks.forEach(block => {
+            const blockRect = block.getBoundingClientRect();
+            //проверка расстояния
+            const distanceBottomToTop = Math.abs(draggedRect.bottom - blockRect.top);
+            if (distanceBottomToTop < this.snapThreshold && 
+                this.isHorizontalOverlap(draggedRect, blockRect)) {
+                    //прилипание сверху к низу другого блока
+                this.draggedBlock.style.top = (blockRect.top - dropZoneRect.top - this.draggedBlock.offsetHeight) + 'px';
+                if (!this.blockManager.areConnected(this.draggedBlock, block)) {
+                    this.blockManager.connectBlocks(this.draggedBlock, block);
+                    //соединение
+                    //обновляем ручки у обоих блоков
+                    this.updateGroupHandles(this.draggedBlock);
+                    this.updateGroupHandles(block);
+                }
+                snapped = true; 
+            }
+            
+            const distanceTopToBottom = Math.abs(draggedRect.top - blockRect.bottom);
+            if (distanceTopToBottom < this.snapThreshold && 
+                this.isHorizontalOverlap(draggedRect, blockRect)) {
+                this.draggedBlock.style.top = (blockRect.bottom - dropZoneRect.top) + 'px';
+                if (!this.blockManager.areConnected(this.draggedBlock, block)) {
+                    this.blockManager.connectBlocks(this.draggedBlock, block);
+                    // обновляем ручки у обоих блоков
+                    this.updateGroupHandles(this.draggedBlock);
+                    this.updateGroupHandles(block);
+                }
+                snapped = true;
+            }
+        });
+        
+        // если не было прилипания, проверяем отлипание
+        if (!snapped) {
+            this.checkDetach();
+        }
+    }
+    
+    //проверка отлипания
+    checkDetach() {
+        if (!this.draggedBlock) return;
+        
+        // Проверяем все блоки, с которыми есть соединение
+        const connections = this.blockManager.connections.get(this.draggedBlock.id || this.draggedBlock.textContent) || [];
+        
+        connections.forEach(connId => {
+            const connectedBlock = Array.from(this.dropZone.querySelectorAll('.block-item')).find(
+                b => (b.id || b.textContent) === connId
+            );
+            
+            if (connectedBlock) {
+                const draggedRect = this.draggedBlock.getBoundingClientRect();
+                const blockRect = connectedBlock.getBoundingClientRect();
+                
+                // Вычисляем расстояние между блоками
+                const distance = Math.min(
+                    Math.abs(draggedRect.bottom - blockRect.top),
+                    Math.abs(draggedRect.top - blockRect.bottom)
+                );
+                
+                // разъединяем
+                if (distance > this.snapThreshold * 2) {
+                    if (this.blockManager.areConnected(this.draggedBlock, connectedBlock)) {
+                        this.blockManager.disconnectBlocks(this.draggedBlock, connectedBlock);
+                        // Обновляем ручки у обоих блоков
+                        this.updateGroupHandles(this.draggedBlock);
+                        this.updateGroupHandles(connectedBlock);
+                    }
+                }
+            }
+        });
+    }
+
+    //для вертикального прилипания
+    isHorizontalOverlap(rect1, rect2) {
+        return !(rect1.right < rect2.left || rect1.left > rect2.right);
+    }
+
+    hideDropIndicator() {
+        this.dropIndicator.style.display = 'none';
+    }
+
+    handleDrop(e) {
+        e.preventDefault();
+        
+        if (!this.draggedBlock) return;
+        
+        this.draggedBlock.classList.remove('dragging');
+        
+        const dropZoneRect = this.dropZone.getBoundingClientRect();
+        const mouseX = e.clientX - dropZoneRect.left;
+        const mouseY = e.clientY - dropZoneRect.top;
+        
+        const blockX = mouseX - this.offsetX;
+        const blockY = mouseY - this.offsetY;
+        
+        if (this.draggedBlock.parentNode === this.dropZone) {
+            console.log('Block moved within right zone');//блок в правой зоне
+        } else {
+            //клон блока из левого списка
+            const newBlock = this.draggedBlock.cloneNode(true);
+            newBlock.setAttribute('draggable', 'true');
+            //обработка нового блока
+            newBlock.addEventListener('dragstart', (e) => this.handleDragStart(e, newBlock));
+            newBlock.addEventListener('dragend', () => this.handleDragEnd());
+            
+            this.dropZone.appendChild(newBlock); //добавление в правую зону
+            newBlock.style.left = blockX + 'px';//позиция
+            newBlock.style.top = blockY + 'px';
+            newBlock.id = 'block_' + Date.now() + '_' + Math.random();//уникальный id
+            
+            console.log('Block cloned from sidebar');
+        }
+        
+        this.hideDropIndicator();
+        // сбрасываем группу после drop
+        this.draggedGroup = [];
+        this.groupPositions = null;
+    }
+    
+    //создание кнопки-ручки для группового перетаскивания
+    createGroupHandle(block) {
+        const handle = document.createElement('div');
+        handle.className = 'group-drag-handle';
+        
+        handle.addEventListener('mousedown', (e) => {
+            e.stopPropagation(); // Не даём событию уйти на блок
+            
+            // Находим все соединённые блоки
+            const group = this.findConnectedGroup(block);
+            if (group.length > 0) {
+                this.draggedGroup = group;
+                this.draggedBlock = block;
+                
+                group.forEach(b => b.classList.add('group-dragging'));
+                
+                // Запоминаем позиции всех блоков в группе
+                this.groupPositions = this.saveGroupPositions(group, block);
+                
+                // Запоминаем смещение мыши
+                const rect = block.getBoundingClientRect();
+                this.offsetX = e.clientX - rect.left;
+                this.offsetY = e.clientY - rect.top;
+                
+                // Запускаем drag
+                const dragEvent = new DragEvent('dragstart', {
+                    dataTransfer: new DataTransfer(),
+                    clientX: e.clientX,
+                    clientY: e.clientY
+                });
+                dragEvent.dataTransfer.setData('text/plain', 'group');
+                block.dispatchEvent(dragEvent);
+            }
+        });
+        
+        return handle;
+    }
+    
+    // рекурсивный поиск всех соединённых блоков
+    findConnectedGroup(block, visited = new Set()) {
+        if (!block || visited.has(block)) return [];
+        
+        visited.add(block);
+        let group = [block];
+        
+        const id = block.id || block.textContent;
+        if (this.blockManager.connections.has(id)) {
+            this.blockManager.connections.get(id).forEach(connId => {
+                const connBlock = Array.from(this.dropZone.querySelectorAll('.block-item')).find(
+                    b => (b.id || b.textContent) === connId
+                );
+                if (connBlock && !visited.has(connBlock)) {
+                    group = group.concat(this.findConnectedGroup(connBlock, visited));
+                }
+            });
+        }
+        
+        return group;
+    }
+    
+    //сохранение относительных позиций блоков в группе
+    saveGroupPositions(group, mainBlock) {
+        const mainRect = mainBlock.getBoundingClientRect();
+        return group.map(block => ({
+            block: block,
+            offsetX: (parseInt(block.style.left) || 0) - (parseInt(mainBlock.style.left) || 0),
+            offsetY: (parseInt(block.style.top) || 0) - (parseInt(mainBlock.style.top) || 0)
+        }));
+    }
+    
+    // обновление позиций всей группы
+    updateGroupPositions(positions, mainX, mainY) {
+        positions.forEach(pos => {
+            pos.block.style.left = (mainX + pos.offsetX) + 'px';
+            pos.block.style.top = (mainY + pos.offsetY) + 'px';
+        });
+    }
+    
+    // обновление кнопок-ручек у блока и его соединений
+    updateGroupHandles(block) {
+        if (!block) return;
+        
+        const group = this.findConnectedGroup(block);
+        group.forEach(b => {
+            // Добавляем класс connected, если есть соединения
+            if (this.blockManager.hasConnections(b)) {
+                b.classList.add('connected');
+                // Добавляем ручку, если её нет
+                if (!b.querySelector('.group-drag-handle')) {
+                    const handle = this.createGroupHandle(b);
+                    b.appendChild(handle);
+                }
+            } else {
+                b.classList.remove('connected'); // Убираем оранжевую обводку
+                // Удаляем ручку, если она есть
+                const handle = b.querySelector('.group-drag-handle');
+                if (handle) handle.remove();
+            }
+        });
+    }
 }
 
 class RootUI{
     constructor(){
-        this.manager = BlockManager();
-        this.drop_zone = document.querySelector('.drop-zone');
+        this.manager = new BlockManager();
+        this.dropZone = document.querySelector('.drop-zone');
         this.dragDropManager = new DragDropManager(this.manager, this.dropZone);
 
         this.init();
@@ -736,6 +1114,7 @@ class RootUI{
         
         document.getElementById('clear_button').addEventListener('click', () => {
             this.manager.clear();
+            this.dropZone.innerHTML = '';
         });
         
         document.getElementById('add_vars').addEventListener('click', () => {
@@ -745,20 +1124,21 @@ class RootUI{
         document.getElementById('add_arr').addEventListener('click', () => {
             ArrayPopUp();
         });
-        this.manager.loadFromLocalStorage();
     }
 
     render_block(block_id){
-        // При создании нового блока его надо рендерить.
+         // При создании нового блока его надо рендерить.
     }
 
+    
     render_saved_blocks(){
-        /*Также юзер будет создавать переменные и массивы, их также надо сохранять и тут
+         /*Также юзер будет создавать переменные и массивы, их также надо сохранять и тут
         распаковывать. */
         //TODO: сделать систему сохранений и эту функцию заодно.
     }
+
     mainloop(){
-        const block = this.drop_zone.querySelector('.start-block');
+        const block = this.dropZone.querySelector('.start-block');
         while (block){
             block.execute();
             block = block.next_block;
@@ -768,6 +1148,17 @@ class RootUI{
 
 document.addEventListener('DOMContentLoaded', function() {
     window.app = new RootUI();
+    
+    //добавляем ручки к уже соединённым блокам
+    setTimeout(() => {
+        document.querySelectorAll('.drop-zone .block-item').forEach(block => {
+            if (window.app.manager.hasConnections(block)) {
+                block.classList.add('connected');
+                if (!block.querySelector('.group-drag-handle')) {
+                    const handle = window.app.dragDropManager.createGroupHandle(block);
+                    block.appendChild(handle);
+                }
+            }
+        });
+    }, 200);
 });
-
-
