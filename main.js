@@ -123,12 +123,17 @@ function is_valid_variable_name(str_var){
         return true;
     }
 
-function VariablePopUp(){
 
+//TODO: переписать функции создания переменных и массива.
+function VariablePopUp() {
+    const varName = prompt("Введите имя переменной:");
+    if (varName && varName.trim()) AddVariables(varName.trim());
 }
 
-function ArrayPopUp(){
-
+function ArrayPopUp() {
+    const arrName = prompt("Введите имя массива:");
+    const length = prompt("Введите размер массива:");
+    if (arrName && length) AddArray(arrName.trim(), parseInt(length));
 }
 
 function AddVariables(vars){
@@ -504,6 +509,7 @@ class AssignmentOperator extends ArithmeticOperationBlock{
             //Универсальная ошибка. Текст: "Переменной/массива [var_name] не существует"
         }
     }
+    //Тестовый комментарий который я оставил при работе с гитом, не обращайте внимания.
 }
 
 class VariableBlock extends BaseBlock{
@@ -1132,7 +1138,7 @@ class RootUI{
 
     
     render_saved_blocks(){
-         /*Также юзер будет создавать переменные и массивы, их также надо сохранять и тут
+        /*Также юзер будет создавать переменные и массивы, их также надо сохранять и тут
         распаковывать. */
         //TODO: сделать систему сохранений и эту функцию заодно.
     }
