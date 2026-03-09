@@ -18,8 +18,13 @@ let variables = {
         else{
             return true;
         }
+    },
+
+    clear_data(){
+        data = {};
     }
 };
+
 let arrays = {
     data: {},
     metadata: {},
@@ -33,7 +38,7 @@ let arrays = {
             this.data[arr_name] = new FixedArray(length, values);
         }
         else{
-            //Универсальная ошибка. Текст: "Массив [arr_name] уже существует"
+            printError(`Массив ${arr_name} уже существует`);
         }
     },
 
@@ -49,6 +54,10 @@ let arrays = {
         else{
             return true;
         }
+    },
+    
+    clear_data(){
+        data = {};
     }
 };
 
@@ -69,20 +78,20 @@ class FixedArray {
             this._data = [...elements];
         }
         else{
-            //Универсальная ошибка. Текст: "Количество значений превышает длину массива"
+            printError("Количество значений превышает длину массива");
         }
     }
     
     get(index) {
         if (index < 0 || index >= this._length) {
-            //Универсальная ошибка. Текст: "Индекс вне диапазона"
+            printError("Индекс вне диапазона");
         }
         return this._data[index];
     }
     
     set(index, value) {
         if (index < 0 || index >= this._length) {
-            //Универсальная ошибка. Текст: "Индекс вне диапазона"
+            printError("Индекс вне диапазона");
         }
         this._data[index] = value;
     }
@@ -145,7 +154,7 @@ function AddVariables(vars){
             //TODO: добавить объекты VariableBlock.
         }
         else{
-            //Универсальная ошибка. Текст: "Невозможно создать переменную с названием [intermediate_value[i]]"
+            printError(`Невозможно создать переменную с названием ${intermediate_value[i]}`);
         }
     }
 }
@@ -157,11 +166,59 @@ function AddArray(arr_name, len){
         //к arrays а не к variables)
     }
     else{
-        //Универсальная ошибка. Текст: "Невозможно создать массив с названием [arr_name]"
+        printError(`Невозможно создать массив с названием ${arr_name}`)
     }
 }
 
+function updateVarsDisplay() {
+    const display = document.getElementById("vars-display");
+    if (!display) return;
+    const keys = Object.keys(variables.data);
+    if (keys.length === 0) {
+        display.innerHTML = '<p class="empty-text">Переменных нет</p>';
+        return;
+    }
+    display.innerHTML = keys
+        .map(
+            (k) =>
+                `<div class="var-row">
+                    <span class="var-name">${k}</span>
+                    <span> = </span>
+                    <span class="var-value">${variables.data[k]}</span>
+                </div>`
+        )
+        .join("");
+}
+
 //Всё что за этим комментом возможно нужно разбросать в отдельный файл
+
+function printError(text) {
+    const errDiv = document.getElementById("errors");
+    if (!errDiv) return;
+    const empty = errDiv.querySelector(".empty-text");
+    if (empty) empty.remove();
+    const p = document.createElement("p");
+    p.className = "error-entry";
+    p.textContent = "⚠ " + text;
+    errDiv.appendChild(p);
+}
+
+function evaluateExpression(expr) {
+    if (expr === null || expr === undefined) return 0;
+    expr = String(expr).trim();
+    if (expr === "") return 0;
+    const substituted = expr.replace(/[a-zA-Z_$][a-zA-Z0-9_$]*/g, (match) => {
+        if (variables.is_variable_name(match)) return variables.get_variable(match);
+        return match;
+    });
+    try {
+        return Function('"use strict"; return (' + substituted + ")")();
+    } catch (e) {
+        console.error("Ошибка в выражении:", expr, e);
+        printError(`Ошибка в выражении: "${expr}"`);
+        return 0;
+    }
+}
 
 class BaseBlock{
     //Если хотите изменить поведение всех блоков в целом, то изменяйте этот класс. От него будут наследоваться все остальные блоки
@@ -262,13 +319,6 @@ class BaseBlock{
     execute(args){
         // Здесь ничего не будет, но в каждом блоке эта функция
         // Будпет переписываться.
-    }
-
-    raise_error(error_text, error_type='force_stop'){
-        /*Вызывает ошибку в терминале. Значения error_type:
-        1. force_stop: Выводит ошибку и останавливает программу. Выделяет блок с ошибкой.
-        2. soft: Выводит ошибку, но программа продолжает работать (например, при
-        создании переменной/массива с неправильным названием*/
     }
 }
 
@@ -373,7 +423,7 @@ class Divide extends ArithmeticOperationBlock {
     
     operate(left, right) {
         if (right === 0) {
-            // Универсальная ошибка: Деление на 0
+            printError("Деление на 0");
             return 0;
         }
         return left / right;
@@ -387,7 +437,7 @@ class Modulo extends ArithmeticOperationBlock {
     
     operate(left, right) {
         if (right === 0) {
-            // Универсальная ошибка: модуль по нулю
+            printError("Модуль от нуля");
             return 0;
         }
         return left % right;
@@ -494,9 +544,17 @@ class NotBlock extends ArithmeticOperationBlock {
 
 
 class AssignmentOperator extends ArithmeticOperationBlock{
+    //TODO: переделать блок??
+    constructor(id, var_name = "", expression = "0") {
+        super(id);
+        this.type = "assign";
+        this.var_name = var_name;
+        this.expression = expression;
+    }
     execute(args){
         let [var_name, value] = [args];
         this.assign(var_name, value);
+        updateVarsDisplay();
     }
     assign(var_name, value){
         if (variables.get_variable(var_name)){
@@ -506,10 +564,12 @@ class AssignmentOperator extends ArithmeticOperationBlock{
             arrays.set_array(var_name, value);
         }
         else{
-            //Универсальная ошибка. Текст: "Переменной/массива [var_name] не существует"
+            console.error(`Переменной/массива ${var_name} не существует`);
+            printError(
+                `Переменной "${var_name}" не существует. Сначала объявите её.`
+            );
         }
     }
-    //Тестовый комментарий который я оставил при работе с гитом, не обращайте внимания.
 }
 
 class VariableBlock extends BaseBlock{
@@ -525,7 +585,10 @@ class VariableBlock extends BaseBlock{
         variables.get_variable(this.name);
     }
     execute(){
-
+        //TODO: проверить поведение
+        const v = this.get_var_value();
+        console.log(`${this.name} = ${v}`);
+        return v;
     }
 }
 
@@ -610,7 +673,7 @@ class IfBlock extends BaseBlock{
         }
         
         if (iterations >= max_iterations) {
-            this.raise_error('Количество вызовов превысило допустимое значение', 'soft');
+            printError('Количество вызовов превысило допустимое значение');
         }
     }
 }
@@ -656,7 +719,7 @@ class WhileBlock extends BaseBlock{
         }
         
         if (iterations >= this.max_iterations) {
-            this.raise_error(`Цикл while превысил максимальное количество повторений (${this.maxIterations})`, 'soft');
+            printError(`Цикл while превысил максимальное количество повторений: (${this.maxIterations})`);
         }
     }
 
@@ -688,6 +751,43 @@ class WhileBlock extends BaseBlock{
         }
     }
 }
+
+class DeclareBlock extends BaseBlock {
+    constructor(id, var_name = "x", initial_value = 0) {
+        super(id, "declare");
+        this.var_name = var_name;
+        this.initial_value = initial_value;
+    }
+    execute() {
+        variables.set_variable(this.var_name, this.initial_value);
+        console.log(`Объявлена: ${this.var_name} = ${this.initial_value}`);
+        updateVarsDisplay();
+    }
+}
+
+class PrintBlock extends BaseBlock {
+    constructor(id, expression = "") {
+        super(id, "print");
+        this.expression = expression;
+    }
+    execute() {
+        const v = evaluateExpression(this.expression);
+        printOutput(String(v));
+        console.log("Вывод:", v);
+    }
+}
+
+function printOutput(text) {
+    const output = document.getElementById("output");
+    if (!output) return;
+    const empty = output.querySelector(".empty-text");
+    if (empty) empty.remove();
+    const p = document.createElement("p");
+    p.className = "output-entry output";
+    p.textContent = text;
+    output.appendChild(p);
+}
+
 class BlockManager {
     constructor() {
         this.blocks = new Map();
@@ -695,14 +795,21 @@ class BlockManager {
     }
     
     add_block(block) {
+        console.log("Добавил блок: " + toString(block.name));
         this.blocks.set(block.id, block);
     }
     
     remove_block(id) {
         const block = this.blocks.get(id);
         if (block) {
-            block.detach_next();
-            block.detach_prev();
+            if (block.past_block) 
+            {
+                block.past_block.next_block = null;
+            }
+            if (block.next_block)
+            {
+                block.next_block.past_block = null;
+            }
             this.blocks.delete(id);
             this.connections.delete(id);
         }
@@ -711,6 +818,14 @@ class BlockManager {
     clear() {
         this.blocks.clear();
         this.connections.clear();
+
+        variables.clear_data();
+        arrays.clear_data();
+
+        document.getElementById("output").innerHTML = 
+        '<p class="empty-text">Нажмите "Начать" для запуска</p>';
+        document.getElementById("errors").innerHTML =
+        '<p class="empty-text">Ошибок нет</p>';
     }
 
     get_chain(startBlock) {
@@ -1133,7 +1248,7 @@ class RootUI{
     }
 
     render_block(block_id){
-         // При создании нового блока его надо рендерить.
+        //При создании нового блока его надо рендерить.
     }
 
     

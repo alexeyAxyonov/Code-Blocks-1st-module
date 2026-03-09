@@ -131,3 +131,23 @@ ul {
     outline: 2px solid #ffaa00;
     outline-offset: 2px;
 }
+
+.right-sidebar {
+    display:flex;
+    flex-direction:column;
+    flex:1;
+    overflow:hidden;
+    background:#161b27;
+}
+.sidebar-section {
+    padding: 16px;
+    border-bottom: 1px solid rgb(51, 51, 51);
+    overflow-y: auto;
+    flex:1;
+}
+.empty-text {
+    color:grey;
+    font-size:12px;
+    letter-spacing:1px;
+    pointer-events:none;
+}
