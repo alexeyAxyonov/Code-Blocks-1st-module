@@ -788,6 +788,97 @@ function printOutput(text) {
     output.appendChild(p);
 }
 
+//Перевод выражения в массив элементов 
+function tokenize(expr)
+{
+    const regex = /\d+\.?\d*|[+\-*/^%()]|[a-zA-Z_$][\w$]*|>|<|>=|<=|==|!=|&&|\|\|/g;
+    return expr.match(regex) || [];
+}
+//Пееревод в Общую Польскую Строку
+function toRPN(tokens) {
+    const rpn = []; //ОПС
+    const stack = [];//Временный стэк для операций
+    const precedence = { "+" : 1, "-" : 1, "*" : 2 , "/" : 2, "^" : 3};     
+    
+    //проход по элементам выражения
+    for (const token of tokens)
+    {
+        if (!isNaN(token)) {
+            rpn.push(token);
+        }
+        else if ("+-*/^".includes(token)) {
+            while (stack.length && stack[stack.length-1] != "(" &&
+            precedence[stack[stack.length-1]]>=precedence[token])
+            {
+                rpn.push(stack.pop());
+            }
+            stack.push(token);
+        }
+        else if (token == "(")
+            stack.push(token);
+
+        else if (token == ")") {
+            while (stack[stack.length-1] !== "(") {
+                rpn.push(stack.pop());
+            }
+            stack.pop();
+        }
+    }
+    while (stack.length) {
+            rpn.push(stack.pop());
+    }
+    return rpn;
+}
+//Создание синтаксического дерева - перевод из ОПС в конечное выражение вида пример Multiply(2,Plus(3,1)) => 2*(3+1)
+function buildAST(rpn) {
+    const stack = []; //для выражений
+
+    for (const token of rpn) {
+        if (!isNaN(token)) {
+            stack.push(Number(token));
+        } else if ("+-*/^".includes(token)) {
+            const right = stack.pop();
+            const left = stack.pop();
+            switch(token) {
+                case "+": block = new Plus(); break;
+                case "-": block = new Minus(); break;
+                case "*": block = new Multiply(); break;
+                case "/": block = new Divide(); break;
+                case "^": block = new Power(); break;
+                case "==": block = new IfBlock(); break;
+            }
+            block.add_left(left);
+            block.add_right(right);
+
+            stack.push(block);
+        }
+    }
+
+    return stack[0]; //корень дерева - конечное выражение
+}
+//Раскрытие выражения в ответ
+function evaluateExpression(expr, vars = {}) {
+    if (expr === null || expr === undefined) return 0;
+
+    expr = String(expr).trim();
+    if (expr === "") return 0;
+
+    const substituted = expr.replace(/[a-zA-Z_$][a-zA-Z0-9_$]*/g, (match) => {
+        if (vars.hasOwnProperty(match)) return vars[match]; 
+        return match; 
+    });
+
+    try {
+        const tokens = tokenize(substituted);
+        const rpn = toRPN(tokens);
+        return buildAST(rpn).execute(); //раскрытие выражения
+    } 
+    catch (e) {
+        console.error("Ошибка в выражении:", expr, e);
+        return 0;
+    }
+}
+
 class BlockManager {
     constructor() {
         this.blocks = new Map();
