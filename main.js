@@ -1,3 +1,11 @@
+function getBlockId(block) {
+    if (block.dataset && block.dataset.blockId) return block.dataset.blockId;
+    
+    if (block.id) return block.id;
+    
+    return block.textContent;
+}
+
 let variables = {
     data: {},
     metadata: {},
@@ -231,7 +239,7 @@ function evaluateExpression(expr, localVars = {}) {
         return ast || 0;
     } catch (e) {
         console.error("Ошибка в выражении:", expr, e);
-         printError(`Ошибка в выражении: "${expr}"`);
+        printError(`Ошибка в выражении: "${expr}"`);
         return 0;
     }
 }
@@ -333,20 +341,40 @@ class BaseBlock{
     
 
     execute(args){
-        // Здесь ничего не будет, но в каждом блоке эта функция
-        // Будет переписываться.
+        console.log("executed_block")
     }
 }
 
 class StartBlock extends BaseBlock{
+    execute(){
+        console.log("executed start_block");
+    }
 }
 
 class EndBlock extends BaseBlock{
+    execute(){
+        console.log("executed end_block");
+    }
+}
+
+class RawArithmeticOperationBlock extends BaseBlock{
+    constructor(id){
+        super(id, "raw-arithmetic");
+        this.operation = null;
+    }
+
+    set_operation(oper){
+        this.operation = oper;
+    }
+
+    execute(){
+        return evaluateExpression(this.operation);
+    }
 }
 
 class ArithmeticOperationBlock extends BaseBlock {
-    constructor(id) {
-        super(id, 'arithmetic');
+    constructor(id, type) {
+        super(id, type);
         this.left = null;
         this.right = null;
     }
@@ -365,7 +393,7 @@ class ArithmeticOperationBlock extends BaseBlock {
         
         const result = this.operate(leftValue, rightValue);
         
-        console.log(`Evaluated: ${leftValue} ${this.operator} ${rightValue} = ${result}`);
+        console.log(`Evaluated: ${leftValue} ${this.type} ${rightValue} = ${result}`);
         return result;
     }
 
@@ -391,7 +419,7 @@ class ArithmeticOperationBlock extends BaseBlock {
 class EqualsBlock extends ArithmeticOperationBlock{
     //Логический оператор сравнения
     constructor(id){
-        super(id, "==");
+        super(id, "equals-block");
     }
     operate(left, right){
         return left === right;
@@ -558,15 +586,14 @@ class NotBlock extends ArithmeticOperationBlock {
     }
 }
 
-
 class AssignmentOperator extends ArithmeticOperationBlock{
-    //TODO: переделать блок??
     constructor(id, var_name = "", expression = "0") {
         super(id);
         this.type = "assign";
         this.var_name = var_name;
         this.expression = expression;
     }
+
     execute(args){
         let [var_name, value] = [args];
         this.assign(var_name, value);
@@ -697,7 +724,7 @@ class IfBlock extends BaseBlock{
 class ForBlock extends BaseBlock {
     constructor(id) {
         super(id, 'for');
-        this.init = null;      
+        this.init = null;
         this.condition = null; 
         this.step = null;      
         this.body_start = null;
@@ -1022,7 +1049,6 @@ function buildAST(rpn) {
             }
         }
     }
-
     return stack[0]; //корень дерева - конечное выражение
 }
 
@@ -1064,6 +1090,14 @@ class BlockManager {
         '<p class="empty-text">Нажмите "Начать" для запуска</p>';
         document.getElementById("errors").innerHTML =
         '<p class="empty-text">Ошибок нет</p>';
+    }
+
+    run_program(start_block_id){
+        block = this.blocks.get(start_block_id);
+        while (block){
+            block.execute();
+            block = block.next_block;
+        }
     }
 
     get_chain(startBlock) {
@@ -1326,12 +1360,44 @@ class DragDropManager {
         
         const blockX = mouseX - this.offsetX;
         const blockY = mouseY - this.offsetY;
-        
+
+        const blockId = 'block_' + Date.now() + '_' + Math.random();
+    
+        // Определить тип блока
+        let baseBlock;
+        if (this.draggedBlock.classList.contains('start-block')) {
+            baseBlock = new StartBlock(blockId, 'start');
+        } else if (this.draggedBlock.classList.contains('end-block')) {
+            baseBlock = new EndBlock(blockId, 'end');
+        } else if (this.draggedBlock.classList.contains('assign-block')){
+            baseBlock = new AssignmentOperator(blockId);
+        } else if (this.draggedBlock.classList.contains('if-block')){
+            baseBlock = new IfBlock(blockId);
+        } else if (this.draggedBlock.classList.contains('for-block')){
+            baseBlock = new ForBlock(blockId);
+        } else if (this.draggedBlock.classList.contains('while-block')){
+            baseBlock = new WhileBlock(blockId);
+        } else if (this.draggedBlock.classList.contains('declare-block')){
+            baseBlock = new DeclareBlock(blockId);
+        } else if (this.draggedBlock.classList.contains('print-block')){
+            baseBlock = new PrintBlock(blockId);
+        } else{
+            throw new Error("Неизвестный блок!");
+        }
+            
         if (this.draggedBlock.parentNode === this.dropZone) {
             console.log('Block moved within right zone');//блок в правой зоне
         } else {
             //клон блока из левого списка
             const newBlock = this.draggedBlock.cloneNode(true);
+            //Добавление ID. Возможно неправильно, что я делаю blockId у логической и визуальной части одинаковым
+            newBlock.dataset.blockId = blockId;
+            // На случай если отсутствие этого ломает что-то в чужом коде.
+            newBlock.dataset.id = blockId;
+            //Связь логической части блока и визуальной
+            newBlock.blockInstance = baseBlock;
+            baseBlock.element = newBlock;
+
             newBlock.setAttribute('draggable', 'true');
             //обработка нового блока
             newBlock.addEventListener('dragstart', (e) => this.handleDragStart(e, newBlock));
@@ -1340,8 +1406,8 @@ class DragDropManager {
             this.dropZone.appendChild(newBlock); //добавление в правую зону
             newBlock.style.left = blockX + 'px';//позиция
             newBlock.style.top = blockY + 'px';
-            newBlock.id = 'block_' + Date.now() + '_' + Math.random();//уникальный id
-            
+            this.blockManager.add_block(baseBlock);
+
             console.log('Block cloned from sidebar');
         }
         
@@ -1464,7 +1530,7 @@ class RootUI{
 
     init(){
         document.getElementById('start_button').addEventListener('click', () => {
-            this.manager.run_program();
+            this.mainloop();
         });
         
         document.getElementById('stop_button').addEventListener('click', () => {
@@ -1498,10 +1564,7 @@ class RootUI{
 
     mainloop(){
         const block = this.dropZone.querySelector('.start-block');
-        while (block){
-            block.execute();
-            block = block.next_block;
-        }
+        this.manager.run_program(block.id);
     }
 }
 

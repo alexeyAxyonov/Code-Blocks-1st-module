@@ -68,6 +68,30 @@ ul {
     background-color: #f94b06;
 }
 
+.assign-block{
+
+}
+
+.if-block{
+
+}
+
+.for-block{
+
+}
+
+.while-block{
+
+}
+
+.declare-block{
+
+}
+
+.print-block{
+    
+}
+
 #sidebar{
     overflow-y: scroll; 
     width: 225px; /**/
