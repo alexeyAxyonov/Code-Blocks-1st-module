@@ -1194,13 +1194,11 @@ class BlockManager {
             bottomInstance = block1Instance;
         }
         
-        // ========== ГЛАВНОЕ ПРАВИЛО ==========
         // У любого блока может быть ТОЛЬКО ОДИН блок сверху
         if (topInstance.past_block) return;
         
         // У любого блока может быть ТОЛЬКО ОДИН блок снизу
         if (bottomInstance.next_block) return;
-        // ====================================
         
         // Создаём соединение
         topInstance.add_next_block(bottomInstance);
@@ -1372,7 +1370,7 @@ class DragDropManager {
     checkSnapping() {
         if (!this.draggedBlock) return;
         
-        // ДОБАВЛЕНО: проверка для StartBlock и EndBlock
+        // проверка для StartBlock и EndBlock
         const isDraggedStart = this.draggedBlock.blockInstance instanceof StartBlock;
         const isDraggedEnd = this.draggedBlock.blockInstance instanceof EndBlock;
         
@@ -1386,12 +1384,12 @@ class DragDropManager {
         otherBlocks.forEach(block => {
             const blockInstance = block.blockInstance;
             
-            // ДОБАВЛЕНО: если оба блока StartBlock - пропускаем
+            // если оба блока StartBlock - пропускаем
             if (isDraggedStart && blockInstance instanceof StartBlock) {
                 return; // пропускаем этот блок, не проверяем прилипание
             }
             
-            // ДОБАВЛЕНО: если оба блока EndBlock - пропускаем
+            // если оба блока EndBlock - пропускаем
             if (isDraggedEnd && blockInstance instanceof EndBlock) {
                 return; // пропускаем этот блок, не проверяем прилипание
             }
