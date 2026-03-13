@@ -1117,6 +1117,44 @@ class BlockManager {
         const id1 = block1.id || block1.textContent;
         const id2 = block2.id || block2.textContent;
         
+        // Получаем экзмепляры блоков
+        const block1Instance = block1.blockInstance;
+        const block2Instance = block2.blockInstance;
+        
+        // определяем, какой блок сверху, а какой снизу
+        const rect1 = block1.getBoundingClientRect();
+        const rect2 = block2.getBoundingClientRect();
+        
+        let topBlock, bottomBlock, topInstance, bottomInstance;
+        
+        if (rect1.bottom < rect2.top) {
+            // block1 сверху, block2 снизу
+            topBlock = block1;
+            bottomBlock = block2;
+            topInstance = block1Instance;
+            bottomInstance = block2Instance;
+        } else if (rect2.bottom < rect1.top) {
+            // block2 сверху, block1 снизу
+            topBlock = block2;
+            bottomBlock = block1;
+            topInstance = block2Instance;
+            bottomInstance = block1Instance;
+        } else {
+            return; // Блоки не по вертикали
+        }
+        
+        // Проверка, есть ли у верхнего блока уже блок сниху
+        if (topInstance && topInstance.next_block) {
+            console.log(`У блока ${topBlock.id} уже есть блок снизу. Нельзя присоединить ещё один.`);
+            return;
+        }
+        
+        // Проверка, есть ли у нижнего блока уже блок сверху
+        if (bottomInstance && bottomInstance.past_block) {
+            console.log(`У блока ${bottomBlock.id} уже есть блок сверху. Нельзя присоединить ещё один.`);
+            return;
+        }
+        
         if (!this.connections.has(id1)) {
             this.connections.set(id1, []);
         }
