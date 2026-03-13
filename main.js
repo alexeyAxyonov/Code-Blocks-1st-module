@@ -1124,7 +1124,7 @@ class BlockManager {
     }
 
     run_program(start_block_id){
-        block = this.blocks.get(start_block_id);
+        let block = this.blocks.get(start_block_id);
         while (block){
             block.execute();
             block = block.next_block;
@@ -1145,67 +1145,70 @@ class BlockManager {
     connectBlocks(block1, block2) {
         if (!block1 || !block2) return;
         
-        const id1 = block1.id || block1.teцxtContent;
+        const id1 = block1.id || block1.textContent;
         const id2 = block2.id || block2.textContent;
         
-        // Получаем экзмепляры блоков
+        // Получаем экземпляры блоков
         const block1Instance = block1.blockInstance;
         const block2Instance = block2.blockInstance;
+        
+        if (!block1Instance || !block2Instance) return;
+        
+        // Запрещаем соединение двух StartBlock
+        if (block1Instance instanceof StartBlock && block2Instance instanceof StartBlock) {
+            return;
+        }
+        
+        // Запрещаем соединение двух EndBlock
+        if (block1Instance instanceof EndBlock && block2Instance instanceof EndBlock) {
+            return;
+        }
         
         // определяем, какой блок сверху, а какой снизу
         const rect1 = block1.getBoundingClientRect();
         const rect2 = block2.getBoundingClientRect();
         
+        const block1Bottom = rect1.bottom;
+        const block1Top = rect1.top;
+        const block2Bottom = rect2.bottom;
+        const block2Top = rect2.top;
+        
+        // Проверяем вертикальное расположение
+        const isBlock1Above = block1Bottom <= block2Top + 5;
+        const isBlock2Above = block2Bottom <= block1Top + 5;
+        
+        if (!isBlock1Above && !isBlock2Above) return;
+        
+        // Определяем верхний и нижний блок
         let topBlock, bottomBlock, topInstance, bottomInstance;
         
-        if (rect1.bottom < rect2.top) {
-            // block1 сверху, block2 снизу
+        if (isBlock1Above) {
             topBlock = block1;
             bottomBlock = block2;
             topInstance = block1Instance;
             bottomInstance = block2Instance;
-        } else if (rect2.bottom < rect1.top) {
-            // block2 сверху, block1 снизу
+        } else {
             topBlock = block2;
             bottomBlock = block1;
             topInstance = block2Instance;
             bottomInstance = block1Instance;
-        } else {
-            return; // Блоки не по вертикали
         }
         
-        // проверка для StartBlock (нельзя присоединить блок сверху)
-        if (topInstance instanceof StartBlock) {
-            console.log(`Нельзя присоединить блок сверху к StartBlock`);
-            return;
-        }
-    
-        // проверка для EndBlock (нельзя присоединить блок снизу)
-        if (bottomInstance instanceof EndBlock) {
-            console.log(`Нельзя присоединить блок снизу к EndBlock`);
-            return;
-        }
-
+        // ========== ГЛАВНОЕ ПРАВИЛО ==========
+        // У любого блока может быть ТОЛЬКО ОДИН блок сверху
+        if (topInstance.past_block) return;
         
-        // Проверка, есть ли у верхнего блока уже блок снизу
-        if (topInstance && topInstance.next_block) {
-            console.log(`У блока ${topBlock.id} уже есть блок снизу. Нельзя присоединить ещё один.`);
-            return;
-        }
+        // У любого блока может быть ТОЛЬКО ОДИН блок снизу
+        if (bottomInstance.next_block) return;
+        // ====================================
         
-        // Проверка, есть ли у нижнего блока уже блок сверху
-        if (bottomInstance && bottomInstance.past_block) {
-            console.log(`У блока ${bottomBlock.id} уже есть блок сверху. Нельзя присоединить ещё один.`);
-            return;
-        }
+        // Создаём соединение
+        topInstance.add_next_block(bottomInstance);
         
-        if (!this.connections.has(id1)) {
-            this.connections.set(id1, []);
-        }
-        if (!this.connections.has(id2)) {
-            this.connections.set(id2, []);
-        }
-        //связь блоков
+        // Сохраняем связь в connections
+        if (!this.connections.has(id1)) this.connections.set(id1, []);
+        if (!this.connections.has(id2)) this.connections.set(id2, []);
+        
         if (!this.connections.get(id1).includes(id2)) {
             this.connections.get(id1).push(id2);
         }
@@ -1213,24 +1216,11 @@ class BlockManager {
             this.connections.get(id2).push(id1);
         }
         
-        //const block1Instance = block1.blockInstance;
-        //const block2Instance = block2.blockInstance;
-        
-        if (block1Instance && block2Instance) {
-            const rect1 = block1.getBoundingClientRect();
-            const rect2 = block2.getBoundingClientRect();
-            
-            if (rect1.bottom < rect2.top) {
-                // Первый блок над вторым
-                block1Instance.add_next_block(block2Instance);
-                console.log(`Логическая связь: ${id1} -> ${id2}`);
-            } else if (rect2.bottom < rect1.top) {
-                // Второй блок над первым
-                block2Instance.add_next_block(block1Instance);
-                console.log(`Логическая связь: ${id2} -> ${id1}`);
-            }
+        // Обновляем ручки
+        if (window.app && window.app.dragDropManager) {
+            window.app.dragDropManager.updateGroupHandles(block1);
+            window.app.dragDropManager.updateGroupHandles(block2);
         }
-        console.log('Блоки соединены:', id1, id2);
     }
     //Разъединение блоков
     disconnectBlocks(block1, block2) {
@@ -1252,14 +1242,17 @@ class BlockManager {
         if (block1Instance && block2Instance) {
             if (block1Instance.next_block === block2Instance) {
                 block1Instance.remove_next_block();
-                console.log(`Удалил логическую связь: ${id1} -> ${id2}`);
             }
             if (block2Instance.next_block === block1Instance) {
                 block2Instance.remove_next_block();
-                console.log(`Удалил логическую связь: ${id2} -> ${id1}`);
             }
         }
-        console.log('Блоки разъединены:', id1, id2);
+
+        // обновляем ручки после разъединения
+        if (window.app && window.app.dragDropManager) {
+            window.app.dragDropManager.updateGroupHandles(block1);
+            window.app.dragDropManager.updateGroupHandles(block2);
+        }
     }
     //Проверка соединения
     areConnected(block1, block2) {
@@ -1307,6 +1300,13 @@ class DragDropManager {
         // Для зоны сброса
         this.dropZone.addEventListener('dragover', (e) => this.handleDragOver(e));
         this.dropZone.addEventListener('drop', (e) => this.handleDrop(e));
+
+        // принудительное обновление ручек при загрузке
+        setTimeout(() => {
+            document.querySelectorAll('.drop-zone .block-item').forEach(block => {
+                this.updateGroupHandles(block);
+            });
+        }, 1000);
     }
 
     handleDragStart(e, block) {
@@ -1370,6 +1370,12 @@ class DragDropManager {
     
     //Проверка: близко ли блок?
     checkSnapping() {
+        if (!this.draggedBlock) return;
+        
+        // ДОБАВЛЕНО: проверка для StartBlock и EndBlock
+        const isDraggedStart = this.draggedBlock.blockInstance instanceof StartBlock;
+        const isDraggedEnd = this.draggedBlock.blockInstance instanceof EndBlock;
+        
         const dropZoneRect = this.dropZone.getBoundingClientRect();
         const draggedRect = this.draggedBlock.getBoundingClientRect();
         
@@ -1378,6 +1384,18 @@ class DragDropManager {
         let snapped = false; // было ли прилипание?
         
         otherBlocks.forEach(block => {
+            const blockInstance = block.blockInstance;
+            
+            // ДОБАВЛЕНО: если оба блока StartBlock - пропускаем
+            if (isDraggedStart && blockInstance instanceof StartBlock) {
+                return; // пропускаем этот блок, не проверяем прилипание
+            }
+            
+            // ДОБАВЛЕНО: если оба блока EndBlock - пропускаем
+            if (isDraggedEnd && blockInstance instanceof EndBlock) {
+                return; // пропускаем этот блок, не проверяем прилипание
+            }
+            
             const blockRect = block.getBoundingClientRect();
             //проверка расстояния
             const distanceBottomToTop = Math.abs(draggedRect.bottom - blockRect.top);
@@ -1388,9 +1406,6 @@ class DragDropManager {
                 if (!this.blockManager.areConnected(this.draggedBlock, block)) {
                     this.blockManager.connectBlocks(this.draggedBlock, block);
                     //соединение
-                    //обновляем ручки у обоих блоков
-                    this.updateGroupHandles(this.draggedBlock);
-                    this.updateGroupHandles(block);
                 }
                 snapped = true; 
             }
@@ -1401,9 +1416,6 @@ class DragDropManager {
                 this.draggedBlock.style.top = (blockRect.bottom - dropZoneRect.top) + 'px';
                 if (!this.blockManager.areConnected(this.draggedBlock, block)) {
                     this.blockManager.connectBlocks(this.draggedBlock, block);
-                    // обновляем ручки у обоих блоков
-                    this.updateGroupHandles(this.draggedBlock);
-                    this.updateGroupHandles(block);
                 }
                 snapped = true;
             }
@@ -1441,9 +1453,6 @@ class DragDropManager {
                 if (distance > this.snapThreshold * 2) {
                     if (this.blockManager.areConnected(this.draggedBlock, connectedBlock)) {
                         this.blockManager.disconnectBlocks(this.draggedBlock, connectedBlock);
-                        // Обновляем ручки у обоих блоков
-                        this.updateGroupHandles(this.draggedBlock);
-                        this.updateGroupHandles(connectedBlock);
                     }
                 }
             }
@@ -1521,6 +1530,11 @@ class DragDropManager {
             newBlock.style.top = blockY + 'px';
 
             console.log('Block cloned from sidebar');
+
+            // обновляем ручки для нового блока
+            setTimeout(() => {
+                this.updateGroupHandles(newBlock);
+            }, 50);
         }
         this.blockManager.add_block(baseBlock);
         this.hideDropIndicator();
@@ -1607,27 +1621,24 @@ class DragDropManager {
         });
     }
     
-    // обновление кнопок-ручек у блока и его соединений
+    // обновление кнопок-ручек у блока
     updateGroupHandles(block) {
         if (!block) return;
         
-        const group = this.findConnectedGroup(block);
-        group.forEach(b => {
-            // Добавляем класс connected, если есть соединения
-            if (this.blockManager.hasConnections(b)) {
-                b.classList.add('connected');
-                // Добавляем ручку, если её нет
-                if (!b.querySelector('.group-drag-handle')) {
-                    const handle = this.createGroupHandle(b);
-                    b.appendChild(handle);
-                }
-            } else {
-                b.classList.remove('connected'); // Убираем оранжевую обводку
-                // Удаляем ручку, если она есть
-                const handle = b.querySelector('.group-drag-handle');
-                if (handle) handle.remove();
+        // Добавляем класс connected, если есть соединения
+        if (this.blockManager.hasConnections(block)) {
+            block.classList.add('connected');
+            // Добавляем ручку, если её нет
+            if (!block.querySelector('.group-drag-handle')) {
+                const handle = this.createGroupHandle(block);
+                block.appendChild(handle);
             }
-        });
+        } else {
+            block.classList.remove('connected'); // Убираем оранжевую обводку
+            // Удаляем ручку, если она есть
+            const handle = block.querySelector('.group-drag-handle');
+            if (handle) handle.remove();
+        }
     }
 }
 
