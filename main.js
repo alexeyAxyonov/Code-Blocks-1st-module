@@ -1131,7 +1131,24 @@ class BlockManager {
             this.connections.get(id2).push(id1);
         }
         
-        console.log('Blocks connected:', id1, id2);
+        const block1Instance = block1.blockInstance;
+        const block2Instance = block2.blockInstance;
+        
+        if (block1Instance && block2Instance) {
+            const rect1 = block1.getBoundingClientRect();
+            const rect2 = block2.getBoundingClientRect();
+            
+            if (rect1.bottom < rect2.top) {
+                // Первый блок над вторым
+                block1Instance.add_next_block(block2Instance);
+                console.log(`Логическая связь: ${id1} -> ${id2}`);
+            } else if (rect2.bottom < rect1.top) {
+                // Второй блок над первым
+                block2Instance.add_next_block(block1Instance);
+                console.log(`Логическая связь: ${id2} -> ${id1}`);
+            }
+        }
+        console.log('Блоки соединены:', id1, id2);
     }
     //Разъединение блоков
     disconnectBlocks(block1, block2) {
@@ -1146,8 +1163,21 @@ class BlockManager {
         if (this.connections.has(id2)) {
             this.connections.set(id2, this.connections.get(id2).filter(id => id !== id1));
         }
+
+        const block1Instance = block1.blockInstance;
+        const block2Instance = block2.blockInstance;
         
-        console.log('Blocks disconnected:', id1, id2);
+        if (block1Instance && block2Instance) {
+            if (block1Instance.next_block === block2Instance) {
+                block1Instance.remove_next_block();
+                console.log(`Удалил логическую связь: ${id1} -> ${id2}`);
+            }
+            if (block2Instance.next_block === block1Instance) {
+                block2Instance.remove_next_block();
+                console.log(`Удалил логическую связь: ${id2} -> ${id1}`);
+            }
+        }
+        console.log('Блоки разъединены:', id1, id2);
     }
     //Проверка соединения
     areConnected(block1, block2) {
@@ -1384,6 +1414,7 @@ class DragDropManager {
         } else{
             throw new Error("Неизвестный блок!");
         }
+
             
         if (this.draggedBlock.parentNode === this.dropZone) {
             console.log('Block moved within right zone');//блок в правой зоне
@@ -1406,11 +1437,10 @@ class DragDropManager {
             this.dropZone.appendChild(newBlock); //добавление в правую зону
             newBlock.style.left = blockX + 'px';//позиция
             newBlock.style.top = blockY + 'px';
-            this.blockManager.add_block(baseBlock);
 
             console.log('Block cloned from sidebar');
         }
-        
+        this.blockManager.add_block(baseBlock);
         this.hideDropIndicator();
         // сбрасываем группу после drop
         this.draggedGroup = [];
