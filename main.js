@@ -956,13 +956,13 @@ class PrintBlock extends BaseBlock {
     }
     execute() {
         const expr = this.expression.trim();
-        //если являются арифметическим выражением или переменной => решаем и выводим
+        //если является вводные данные строкой то просто выводим
         if (expr.startsWith('"') && expr.endsWith('"')){
             const w = expr.slice(1, -1); // убираем кавычки
             printOutput(w);
             console.log("Вывод:", w);
         }
-        //если является вводные данные строкой то просто выводим
+        //если являются арифметическим выражением или переменной => решаем и выводим
         else {
             const v = evaluateExpression(expr);
             printOutput(String(v));
@@ -985,14 +985,15 @@ function printOutput(text) {
 //Перевод выражения в массив элементов 
 function tokenize(expr)
 {
-    const regex = /\d+\.?\d*|[+\-*/^%()]|[a-zA-Z_$][\w$]*|>|<|>=|<=|==|!=|&&|\|\|/g;
+    const regex = /\d+\.?\d*|[+\-*/^%()]|[a-zA-Z_$][\w$]*|>|<|>=|<=|==|!=|!|&&|\|\|/g;
     return expr.match(regex) || [];
 }
 //Пееревод в Общую Польскую Строку
 function toRPN(tokens) {
     const rpn = []; //ОПС
     const stack = [];//Временный стэк для операций
-    const precedence = { "+" : 1, "-" : 1, "*" : 2 , "/" : 2, "^" : 3};     
+    const precedence = { "+" : 1, "-" : 1, "*" : 2 , "/" : 2, "^" : 3,
+            ">" : 0, "<" : 0, ">=" : 0, "<=" : 0, "==" : 0, "!=" : 0, "&&":0,"||":0,"!":3};      
     
     //проход по элементам выражения
     for (const token of tokens)
@@ -1000,7 +1001,7 @@ function toRPN(tokens) {
         if (!isNaN(token)) {
             rpn.push(token);
         }
-        else if ("+-*/^".includes(token)) {
+        else if (token in precedence) {
             while (stack.length && stack[stack.length-1] != "(" &&
             precedence[stack[stack.length-1]]>=precedence[token])
             {
@@ -1048,9 +1049,39 @@ function buildAST(rpn) {
                 stack.push(block);
             }
         }
-    }
+        else if (["==","!=","<",">","<=",">=","&&","||","!"].includes(token)) {
+            const right = stack.pop();
+            const left = token !== "!" ? stack.pop() : null; //если унарный "!" то только 1 операнд
+            let block;
+
+            switch(token) {
+                case "==": block = new EqualsBlock(); break;
+                case "!=": block = new NotEqualsBlock(); break;
+                case "<": block = new LessThanBlock(); break;
+                case "<=": block = new LessThanOrEqualBlock(); break;
+                case ">": block = new GreaterThanBlock(); break;
+                case ">=": block = new GreaterThanOrEqualBlock(); break;
+
+                case "&&": block = new AndBlock(); break;
+                case "||": block = new OrBlock(); break;
+            }
+
+            block.add_left(left);
+            block.add_right(right);
+            stack.push(block);
+        }
+
+        else if (token === "!") { // унарный NOT имеет один операнд
+            const operand = stack.pop();
+            const block = new NotBlock();
+            block.add_left(operand);
+            stack.push(block);
+        }
+    }    
+    
     return stack[0]; //корень дерева - конечное выражение
 }
+
 
 class BlockManager {
     constructor() {
@@ -1114,7 +1145,7 @@ class BlockManager {
     connectBlocks(block1, block2) {
         if (!block1 || !block2) return;
         
-        const id1 = block1.id || block1.textContent;
+        const id1 = block1.id || block1.teцxtContent;
         const id2 = block2.id || block2.textContent;
         
         // Получаем экзмепляры блоков
@@ -1182,8 +1213,8 @@ class BlockManager {
             this.connections.get(id2).push(id1);
         }
         
-        const block1Instance = block1.blockInstance;
-        const block2Instance = block2.blockInstance;
+        //const block1Instance = block1.blockInstance;
+        //const block2Instance = block2.blockInstance;
         
         if (block1Instance && block2Instance) {
             const rect1 = block1.getBoundingClientRect();
