@@ -1184,9 +1184,6 @@ class BlockManager {
             this.connections.get(id2).push(id1);
         }
         
-        const block1Instance = block1.blockInstance;
-        const block2Instance = block2.blockInstance;
-        
         if (block1Instance && block2Instance) {
             const rect1 = block1.getBoundingClientRect();
             const rect2 = block2.getBoundingClientRect();
