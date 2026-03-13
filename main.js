@@ -1093,7 +1093,7 @@ class BlockManager {
     }
 
     run_program(start_block_id){
-        block = this.blocks.get(start_block_id);
+        let block = this.blocks.get(start_block_id);
         while (block){
             block.execute();
             block = block.next_block;
@@ -1114,8 +1114,10 @@ class BlockManager {
     connectBlocks(block1, block2) {
         if (!block1 || !block2) return;
         
-        const id1 = block1.id || block1.textContent;
-        const id2 = block2.id || block2.textContent;
+        const id1 = getBlockId(block1);
+        const id2 = getBlockId(block2);
+
+        console.log("Соединяем блоки: " + block1.type + " id: " + block1.id + " | " + block2.type + " id: " + block2.id);
         
         if (!this.connections.has(id1)) {
             this.connections.set(id1, []);
@@ -1154,8 +1156,8 @@ class BlockManager {
     disconnectBlocks(block1, block2) {
         if (!block1 || !block2) return;
         
-        const id1 = block1.id || block1.textContent;
-        const id2 = block2.id || block2.textContent;
+        const id1 = getBlockId(block1);
+        const id2 = getBlockId(block2);
         //удаление связи 
         if (this.connections.has(id1)) {
             this.connections.set(id1, this.connections.get(id1).filter(id => id !== id2));
@@ -1181,15 +1183,15 @@ class BlockManager {
     }
     //Проверка соединения
     areConnected(block1, block2) {
-        const id1 = block1.id || block1.textContent;
-        const id2 = block2.id || block2.textContent;
+        const id1 = getBlockId(block1);
+        const id2 = getBlockId(block2);
         
         return this.connections.has(id1) && this.connections.get(id1).includes(id2);
     }
     
     //проверка, есть ли у блока соединения
     hasConnections(block) {
-        const id = block.id || block.textContent;
+        const id = getBlockId(block);
         return this.connections.has(id) && this.connections.get(id).length > 0;
     }
 }
@@ -1338,7 +1340,7 @@ class DragDropManager {
         if (!this.draggedBlock) return;
         
         // Проверяем все блоки, с которыми есть соединение
-        const connections = this.blockManager.connections.get(this.draggedBlock.id || this.draggedBlock.textContent) || [];
+        const connections = this.blockManager.connections.get(getBlockId(this.draggedBlock.id)) || [];
         
         connections.forEach(connId => {
             const connectedBlock = Array.from(this.dropZone.querySelectorAll('.block-item')).find(
@@ -1439,12 +1441,20 @@ class DragDropManager {
             newBlock.style.top = blockY + 'px';
 
             console.log('Block cloned from sidebar');
+            console.log("Создан блок:", {
+            visualId: newBlock.dataset.blockId,
+            logicalId: baseBlock.id,
+            type: baseBlock.type || baseBlock.constructor.name
+            });
         }
         this.blockManager.add_block(baseBlock);
         this.hideDropIndicator();
         // сбрасываем группу после drop
         this.draggedGroup = [];
         this.groupPositions = null;
+
+        // Отладочный код
+
     }
     
     //создание кнопки-ручки для группового перетаскивания
@@ -1492,11 +1502,11 @@ class DragDropManager {
         visited.add(block);
         let group = [block];
         
-        const id = block.id || block.textContent;
+        const id = getBlockId(block);
         if (this.blockManager.connections.has(id)) {
             this.blockManager.connections.get(id).forEach(connId => {
                 const connBlock = Array.from(this.dropZone.querySelectorAll('.block-item')).find(
-                    b => (b.id || b.textContent) === connId
+                    b => getBlockId(b) === connId
                 );
                 if (connBlock && !visited.has(connBlock)) {
                     group = group.concat(this.findConnectedGroup(connBlock, visited));
@@ -1593,8 +1603,21 @@ class RootUI{
     }
 
     mainloop(){
-        const block = this.dropZone.querySelector('.start-block');
-        this.manager.run_program(block.id);
+        const startBlock = this.dropZone.querySelector('.start-block');
+        if (!startBlock) {
+            console.error("Нет начального блока");
+            printError("Добавьте блок 'Начало программы'");
+            return;
+        }
+        
+        const blockId = startBlock.dataset.blockId || startBlock.id;
+        if (!blockId) {
+            console.error("Начальный блок не имеет ID");
+            printError("Ошибка: начальный блок не идентифицирован");
+            return;
+        }
+        
+        this.manager.run_program(blockId);
     }
 }
 
