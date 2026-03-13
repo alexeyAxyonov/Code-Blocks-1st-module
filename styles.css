@@ -1,3 +1,14 @@
+:root {
+    --border: grey;
+}
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
 body {
     font-family: "Tahoma", sans-serif;
     font-size: 16px;
@@ -6,12 +17,28 @@ body {
     background-color: #c0e8df;
 }
 
+.header {
+    display:flex;
+    flex-shrink: 0;
+    gap:20px;
+    align-items: center;
+    justify-content: right;
+    height:54px;
+    background:#161b27;
+    border-bottom:1px solid rgb(51, 51, 51);
+    padding:0px 24px;
+} 
+
 ul {
     list-style-type: none;
 }
 
 .block-item{
     transition: background-color 0.5s;
+    border: 2px  grey;
+    border-radius: 12% 12% 0% 0%;
+    background-color: rgb(107, 103, 103);
+    min-height:45px;
     margin-bottom: 10px;
     padding: 5px;
 
@@ -29,13 +56,13 @@ ul {
     margin-bottom: 0;
 }
 
-.start-block{
+.block-item.start-block{
     border: 2px  #0f3b0e;
     border-radius: 12% 12% 0% 0%;
     background-color: #2af906;
 }
 
-.end-block{
+.block-item.end-block{
     border: 2px  #0f3b0e;
     border-radius: 0% 0% 12% 12%;
     background-color: #f94b06;
@@ -43,19 +70,19 @@ ul {
 
 #sidebar{
     overflow-y: scroll; 
-    width: 150px;
+    width: 225px; /**/
     height: 94vh;
-    border: 1px black;
-    border-radius: 10px;
+    padding: 15px; /**/
+    background:#161b27;
+    border-right: 1px solid rgb(51, 51, 51);
 }
 
 .drop-zone {
     position: relative; /*абсолютное*/
     min-height: 400px;
-    border: 2px dashed #4CAF50;
-    border-radius: 10px;
-    padding: 10px;
-    background-color: rgba(255, 255, 255, 0.3);
+    background:#1a1f27;
+    padding:5px;
+    border-right: 1px solid rgb(51, 51, 51);
 }
 
 .drop-zone .block-item {
@@ -74,11 +101,11 @@ ul {
 }
 
 .drop-zone .start-block {
-    background-color: #2af906;
+    background-color: #2af906 !important;
 }
 
 .drop-zone .end-block {
-    background-color: #f94b06;
+    background-color: #f94b06 !important;
 }
 
 .block-item.dragging {

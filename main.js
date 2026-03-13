@@ -928,9 +928,19 @@ class PrintBlock extends BaseBlock {
         this.expression = expression;
     }
     execute() {
-        const v = evaluateExpression(this.expression);
-        printOutput(String(v));
-        console.log("Вывод:", v);
+        const expr = this.expression.trim();
+        //если являются арифметическим выражением или переменной => решаем и выводим
+        if (expr.startsWith('"') && expr.endsWith('"')){
+            const w = expr.slice(1, -1); // убираем кавычки
+            printOutput(w);
+            console.log("Вывод:", w);
+        }
+        //если является вводные данные строкой то просто выводим
+        else {
+            const v = evaluateExpression(expr);
+            printOutput(String(v));
+            console.log("Вывод:", v);
+        }
     }
 }
 
