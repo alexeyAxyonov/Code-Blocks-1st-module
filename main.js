@@ -203,19 +203,35 @@ function printError(text) {
     errDiv.appendChild(p);
 }
 
-function evaluateExpression(expr) {
+// поддержка локальных переменных
+function evaluateExpression(expr, localVars = {}) {
     if (expr === null || expr === undefined) return 0;
+
     expr = String(expr).trim();
     if (expr === "") return 0;
+
+    // сначала локальные переменные, потом глобальные
     const substituted = expr.replace(/[a-zA-Z_$][a-zA-Z0-9_$]*/g, (match) => {
-        if (variables.is_variable_name(match)) return variables.get_variable(match);
+        if (localVars && localVars.hasOwnProperty(match)) {
+            return localVars[match];
+        }
+        if (variables.is_variable_name(match)) {
+            return variables.get_variable(match);
+        }
         return match;
     });
+
     try {
-        return Function('"use strict"; return (' + substituted + ")")();
+        const tokens = tokenize(substituted); //разбиваем выражение на части
+        const rpn = toRPN(tokens); //ОПС
+        const ast = buildAST(rpn); //строим дерево из наших блоков
+        if (ast && typeof ast.execute === 'function') {
+            return ast.execute();//выполняем дерево
+        }
+        return ast || 0;
     } catch (e) {
         console.error("Ошибка в выражении:", expr, e);
-        printError(`Ошибка в выражении: "${expr}"`);
+         printError(`Ошибка в выражении: "${expr}"`);
         return 0;
     }
 }
@@ -318,7 +334,7 @@ class BaseBlock{
 
     execute(args){
         // Здесь ничего не будет, но в каждом блоке эта функция
-        // Будпет переписываться.
+        // Будет переписываться.
     }
 }
 
@@ -678,19 +694,52 @@ class IfBlock extends BaseBlock{
     }
 }
 
-class ForBlock extends BaseBlock{
-
-}
-
-class WhileBlock extends BaseBlock{
-    constructor(id){
-        super(id, 'while');
-        this.condition = null;
+class ForBlock extends BaseBlock {
+    constructor(id) {
+        super(id, 'for');
+        this.init = null;      
+        this.condition = null; 
+        this.step = null;      
         this.body_start = null;
         this.max_iterations = 1000;
+        
+        // поля для хранения текстовых выражений
+        this.init_text = "";
+        this.condition_text = "";
+        this.step_text = "";
     }
-    set_condition(condition) {
-        this.condition = condition;
+
+    set_init(value) {
+        if (value instanceof ArithmeticOperationBlock || 
+            value instanceof VariableBlock) {
+            this.init = value;
+            this.init_text = ""; // очищаем текст, если это блок
+        } else if (typeof value === 'string') {
+            this.init_text = value;
+            this.init = null;
+        }
+    }
+
+    set_condition(value) {
+        if (value instanceof ArithmeticOperationBlock || 
+            value instanceof VariableBlock) {
+            this.condition = value;
+            this.condition_text = "";
+        } else if (typeof value === 'string') {
+            this.condition_text = value;
+            this.condition = null;
+        }
+    }
+
+    set_step(value) {
+        if (value instanceof ArithmeticOperationBlock || 
+            value instanceof VariableBlock) {
+            this.step = value;
+            this.step_text = "";
+        } else if (typeof value === 'string') {
+            this.step_text = value;
+            this.step = null;
+        }
     }
 
     set_body(block) {
@@ -700,13 +749,133 @@ class WhileBlock extends BaseBlock{
         }
     }
 
+    // вычисление значения из блока или текста
+    evaluateValue(item, localVars = {}) {
+        if (item instanceof ArithmeticOperationBlock) {
+            return item.execute();
+        } else if (item instanceof VariableBlock) {
+            return item.get_var_value();
+        } else if (typeof item === 'string') {
+            // Если это текст - вычисляем выражение
+            return evaluateExpression(item, localVars);
+        }
+        return item;
+    }
+
+    execute(args) {
+        let iterations = 0;
+        
+        console.log('Начало цикла for');
+        
+        // создаем локальные переменные для цикла
+        const localVars = {};
+        
+        // инициализация
+        if (this.init) {
+            this.evaluateValue(this.init, localVars);
+        } else if (this.init_text) {
+            evaluateExpression(this.init_text, localVars);
+        }
+        
+        while (iterations < this.max_iterations) {
+            // проверяем условие
+            let condition_value = true;
+            if (this.condition) {
+                condition_value = Boolean(this.evaluateValue(this.condition, localVars));
+            } else if (this.condition_text) {
+                condition_value = Boolean(evaluateExpression(this.condition_text, localVars));
+            }
+            
+            if (!condition_value) {
+                console.log(`Цикл for закончился после ${iterations} повторений`);
+                break;
+            }
+            
+            // Выполняем тело цикла
+            this.execute_body(args, localVars);
+            
+            // выполняем шаг
+            if (this.step) {
+                this.evaluateValue(this.step, localVars);
+            } else if (this.step_text) {
+                evaluateExpression(this.step_text, localVars);
+            }
+            
+            iterations++;
+        }
+        
+        if (iterations >= this.max_iterations) {
+            printError(`Цикл for превысил максимальное количество повторений: ${this.max_iterations}`);
+        }
+    }
+
+    // передаем локальные переменные в тело цикла
+    execute_body(args, localVars) {
+        if (!this.body_start) return;
+        
+        let current = this.body_start;
+        
+        while (current) {
+            const next_in_body = current.next_block;
+            
+            // Здесь можно передать локальные переменные, если нужно
+            if (typeof current.execute === 'function') {
+                current.execute(args);
+            }
+            
+            current = next_in_body;
+        }
+    }
+}
+
+class WhileBlock extends BaseBlock {
+    constructor(id) {
+        super(id, 'while');
+        this.condition = null;
+        this.body_start = null;
+        this.max_iterations = 1000;
+        // поле для текстового условия
+        this.condition_text = "";
+    }
+
+    // установка условия с поддержкой блоков и текста
+    set_condition(value) {
+        if (value instanceof ArithmeticOperationBlock || 
+            value instanceof VariableBlock) {
+            this.condition = value;
+            this.condition_text = "";
+        } else if (typeof value === 'string') {
+            this.condition_text = value;
+            this.condition = null;
+        }
+    }
+
+    set_body(block) {
+        this.body_start = block;
+        if (block) {
+            block.past_block = this;
+        }
+    }
+
+    // вычисление условия
+    evaluateCondition(localVars = {}) {
+        if (this.condition instanceof ArithmeticOperationBlock) {
+            return Boolean(this.condition.execute());
+        } else if (this.condition instanceof VariableBlock) {
+            return Boolean(this.condition.get_var_value());
+        } else if (this.condition_text) {
+            return Boolean(evaluateExpression(this.condition_text, localVars));
+        }
+        return false;
+    }
+
     execute(args) {
         let iterations = 0;
         
         console.log('Начало цикла while');
         
         while (iterations < this.max_iterations) {
-            const condition_value = this.evaluate_condition();
+            const condition_value = this.evaluateCondition();
             
             if (!condition_value) {
                 console.log(`Цикл while закончился после ${iterations} повторений`);
@@ -719,21 +888,7 @@ class WhileBlock extends BaseBlock{
         }
         
         if (iterations >= this.max_iterations) {
-            printError(`Цикл while превысил максимальное количество повторений: (${this.maxIterations})`);
-        }
-    }
-
-    evaluate_condition() {
-        if (this.condition instanceof ArithmeticOperationBlock) {
-            return this.condition.execute();
-        }
-        
-        else if (this.condition instanceof VariableBlock) {
-            return this.condition.get_var_value();
-        }
-        
-        else {
-            return Boolean(this.condition);
+            printError(`Цикл while превысил максимальное количество повторений: ${this.max_iterations}`);
         }
     }
 
@@ -745,7 +900,9 @@ class WhileBlock extends BaseBlock{
         while (current) {
             const next_in_body = current.next_block;
             
-            current.execute(args);
+            if (typeof current.execute === 'function') {
+                current.execute(args);
+            }
             
             current = next_in_body;
         }
@@ -839,44 +996,24 @@ function buildAST(rpn) {
         } else if ("+-*/^".includes(token)) {
             const right = stack.pop();
             const left = stack.pop();
+            let block; //создаём пустой блок
             switch(token) {
                 case "+": block = new Plus(); break;
                 case "-": block = new Minus(); break;
                 case "*": block = new Multiply(); break;
                 case "/": block = new Divide(); break;
                 case "^": block = new Power(); break;
-                case "==": block = new IfBlock(); break;
+                case "==": block = new EqualsBlock(); break;
             }
-            block.add_left(left);
-            block.add_right(right);
-
-            stack.push(block);
+            if (block) { //проверка для защиты от ошибок
+                block.add_left(left);
+                block.add_right(right);
+                stack.push(block);
+            }
         }
     }
 
     return stack[0]; //корень дерева - конечное выражение
-}
-//Раскрытие выражения в ответ
-function evaluateExpression(expr, vars = {}) {
-    if (expr === null || expr === undefined) return 0;
-
-    expr = String(expr).trim();
-    if (expr === "") return 0;
-
-    const substituted = expr.replace(/[a-zA-Z_$][a-zA-Z0-9_$]*/g, (match) => {
-        if (vars.hasOwnProperty(match)) return vars[match]; 
-        return match; 
-    });
-
-    try {
-        const tokens = tokenize(substituted);
-        const rpn = toRPN(tokens);
-        return buildAST(rpn).execute(); //раскрытие выражения
-    } 
-    catch (e) {
-        console.error("Ошибка в выражении:", expr, e);
-        return 0;
-    }
 }
 
 class BlockManager {
@@ -886,7 +1023,7 @@ class BlockManager {
     }
     
     add_block(block) {
-        console.log("Добавил блок: " + toString(block.name));
+        console.log("Добавил блок: " + (block.name || block.id));
         this.blocks.set(block.id, block);
     }
     
