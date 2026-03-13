@@ -1143,7 +1143,20 @@ class BlockManager {
             return; // Блоки не по вертикали
         }
         
-        // Проверка, есть ли у верхнего блока уже блок сниху
+        // проверка для StartBlock (нельзя присоединить блок сверху)
+        if (topInstance instanceof StartBlock) {
+            console.log(`Нельзя присоединить блок сверху к StartBlock`);
+            return;
+        }
+    
+        // проверка для EndBlock (нельзя присоединить блок снизу)
+        if (bottomInstance instanceof EndBlock) {
+            console.log(`Нельзя присоединить блок снизу к EndBlock`);
+            return;
+        }
+
+        
+        // Проверка, есть ли у верхнего блока уже блок снизу
         if (topInstance && topInstance.next_block) {
             console.log(`У блока ${topBlock.id} уже есть блок снизу. Нельзя присоединить ещё один.`);
             return;
