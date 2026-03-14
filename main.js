@@ -1166,6 +1166,27 @@ class BlockManager {
             return;
         }
         
+        // Запрещаем присоединение второго блока к StartBlock
+        if (block1Instance instanceof StartBlock && block1Instance.next_block) {
+            console.log("К блоку Start уже присоединён блок");
+            printError("К блоку 'Начало' можно присоединить только один блок");
+            return;
+        }
+        
+        // Запрещаем присоединение второго блока к EndBlock сверху
+        if (block2Instance instanceof EndBlock && block2Instance.past_block) {
+            console.log("К блоку End уже присоединён блок сверху");
+            printError("К блоку 'Конец' можно присоединить только один блок сверху");
+            return;
+        }
+        
+        // Также проверяем обратную ситуацию (когда EndBlock может быть block1)
+        if (block1Instance instanceof EndBlock && block1Instance.past_block) {
+            console.log("К блоку End уже присоединён блок сверху");
+            printError("К блоку 'Конец' можно присоединить только один блок сверху");
+            return;
+        }
+
         // определяем, какой блок сверху, а какой снизу
         const rect1 = block1.getBoundingClientRect();
         const rect2 = block2.getBoundingClientRect();
@@ -1194,6 +1215,20 @@ class BlockManager {
             bottomBlock = block1;
             topInstance = block2Instance;
             bottomInstance = block1Instance;
+        }
+        
+        // Дополнительная проверка для StartBlock как верхнего блока
+        if (topInstance instanceof StartBlock && topInstance.next_block) {
+            console.log("К блоку Start уже присоединён блок");
+            printError("К блоку 'Начало' можно присоединить только один блок");
+            return;
+        }
+        
+        // Дополнительная проверка для EndBlock как нижнего блока
+        if (bottomInstance instanceof EndBlock && bottomInstance.past_block) {
+            console.log("К блоку End уже присоединён блок сверху");
+            printError("К блоку 'Конец' можно присоединить только один блок сверху");
+            return;
         }
         
         // У любого блока может быть ТОЛЬКО ОДИН блок сверху
