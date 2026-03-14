@@ -159,6 +159,7 @@ function AddVariables(vars){
     for (let i = 0; i < intermediate_value.length; i++){
         if (is_valid_variable_name(intermediate_value[i])){
             variables.set_variable(intermediate_value[i], 0);
+            console.log("Создана переменная " + intermediate_value[i]);
             //TODO: добавить объекты VariableBlock.
         }
         else{
@@ -359,7 +360,7 @@ class EndBlock extends BaseBlock{
 
 class RawArithmeticOperationBlock extends BaseBlock{
     constructor(id){
-        super(id, "raw-arithmetic");
+        super(id, "raw-arith");
         this.operation = null;
     }
 
@@ -370,6 +371,72 @@ class RawArithmeticOperationBlock extends BaseBlock{
     execute(){
         return evaluateExpression(this.operation);
     }
+}
+
+function setupArithmeticBlock(blockElement, blockInstance) {
+    blockElement.classList.add('arithmetic-block');
+    
+    blockElement.innerHTML = '';
+    
+    const displayDiv = document.createElement('div');
+    displayDiv.className = 'expression-display';
+    displayDiv.textContent = blockInstance.operation || 'Выражение не задано';
+    blockElement.appendChild(displayDiv);
+    
+    blockElement.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        
+        const currentExpr = blockInstance.operation || '';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = currentExpr;
+
+        const oldDisplay = blockElement.querySelector('.expression-display');
+        if (oldDisplay) {
+            oldDisplay.style.display = 'none';
+        }
+        
+        blockElement.appendChild(input);
+        input.focus();
+        
+        // Функция сохранения выражения
+        const saveExpression = () => {
+            if (!input.isConnected) return;
+
+            const expr = input.value.trim();
+            blockInstance.set_operation(expr);
+            
+            // Обновляем отображение
+            const display = blockElement.querySelector('.expression-display');
+            if (display) {
+                display.textContent = expr || 'Выражение не задано';
+                display.style.display = 'block';
+            }
+            
+            if (input.parentNode === blockElement){
+                input.remove();
+            }
+        };
+
+        let isSaving = false;
+        
+        input.addEventListener('blur', () => {
+            if (!isSaving){
+                isSaving = true;
+                saveExpression();
+            }
+        });
+        
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (!isSaving){
+                    isSaving = true;
+                    saveExpression();
+                }
+            }
+        });
+    });
 }
 
 class ArithmeticOperationBlock extends BaseBlock {
@@ -594,25 +661,102 @@ class AssignmentOperator extends ArithmeticOperationBlock{
         this.expression = expression;
     }
 
+    setVariableName(name) {
+        this.variableName = name;
+    }
+
+    setExpression(expr) {
+        this.expression = expr;
+    }
+
     execute(args){
-        let [var_name, value] = [args];
-        this.assign(var_name, value);
+        if (!this.variableName || !this.expression) {
+            console.log("Assign block: incomplete assignment");
+            return;
+        }
+
+        // Check if variable exists
+        if (!variables.is_variable_name(this.variableName)) {
+            printError(`Переменная "${this.variableName}" не существует. Сначала объявите её.`);
+            return;
+        }
+
+        // Evaluate the expression
+        const value = evaluateExpression(this.expression);
+        
+        // Assign the value
+        variables.set_variable(this.variableName, value);
+        
+        console.log(`Assign: ${this.variableName} = ${value} (from ${this.expression})`);
         updateVarsDisplay();
     }
-    assign(var_name, value){
-        if (variables.get_variable(var_name)){
-            variables.set_variable(var_name, value);
-        }
-        else if (arrays.data.get_array(var_name)){
-            arrays.set_array(var_name, value);
-        }
-        else{
-            console.error(`Переменной/массива ${var_name} не существует`);
-            printError(
-                `Переменной "${var_name}" не существует. Сначала объявите её.`
-            );
+}
+
+function setupAssignBlock(blockElement, blockInstance) {
+    blockElement.classList.add('assign-block');
+    
+    updateAssignBlockDisplay(blockElement, blockInstance);
+    
+    blockElement.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        showAssignPrompts(blockElement, blockInstance);
+    });
+}
+
+function updateAssignBlockDisplay(blockElement, blockInstance) {
+    blockElement.innerHTML = '';
+    
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'assign-title';
+    titleDiv.textContent = 'Присваивание';
+    blockElement.appendChild(titleDiv);
+    
+    const displayDiv = document.createElement('div');
+    displayDiv.className = 'assign-display';
+    
+    if (blockInstance.variableName && blockInstance.expression) {
+        displayDiv.innerHTML = `<span class="assign-var">${blockInstance.variableName}</span> <span class="assign-equals">=</span> <span class="assign-expr">${blockInstance.expression}</span>`;
+    } else {
+        displayDiv.textContent = 'Дважды кликните для настройки';
+        displayDiv.style.opacity = '0.7';
+    }
+    
+    blockElement.appendChild(displayDiv);
+}
+
+function showAssignPrompts(blockElement, blockInstance) {
+    const varName = prompt("Введите имя переменной:", blockInstance.variableName || "");
+    
+    if (varName === null) return;
+    
+    if (!varName.trim()) {
+        alert("Имя переменной не может быть пустым");
+        return;
+    }
+    
+    if (!variables.is_variable_name(varName.trim())) {
+        const createVar = confirm(`Переменная "${varName}" не существует. Создать её?`);
+        if (createVar) {
+            variables.set_variable(varName.trim(), 0);
+            updateVarsDisplay();
+        } else {
+            return;
         }
     }
+    
+    const expr = prompt("Введите выражение :", blockInstance.expression || "");
+    
+    if (expr === null) return;
+    
+    if (!expr.trim()) {
+        alert("Выражение не может быть пустым");
+        return;
+    }
+    
+    blockInstance.setVariableName(varName.trim());
+    blockInstance.setExpression(expr.trim());
+    
+    updateAssignBlockDisplay(blockElement, blockInstance);
 }
 
 class VariableBlock extends BaseBlock{
@@ -646,13 +790,19 @@ class IfBlock extends BaseBlock{
     constructor(id, name){
         super(id, 'if');
         this.name = name;
-        this.condition = null;
         this.then_branch = null;
         this.else_branch = null;
     }
 
-    set_condition(condition){
-        this.condition = condition;
+    getConditionBlock(){
+        console.log("getConditionBlock called for if block:", this.id);
+        console.log("this.next_block:", this.next_block);
+        if (this.next_block && this.next_block instanceof RawArithmeticOperationBlock) {
+            console.log("Found RawArithmeticOperationBlock as next_block");
+            return this.next_block;
+        }
+        console.log("No RawArithmeticOperationBlock found as next_block");
+        return null;
     }
 
     set_then_branch(block){
@@ -670,19 +820,25 @@ class IfBlock extends BaseBlock{
     }
 
     execute(args){
-        const condition_value = this.evaluate_condition();
-        
+        const condition_block = this.getConditionBlock();
+        if (!condition_block){
+            printError("Блок If не имеет условия (присоедините арифметический блок сверху)");
+            return;
+        }
+        const condition_value = Boolean(condition_block.execute());
         console.log(`If condition evaluated to: ${condition_value}`);
         
         if (condition_value) {
-            this.execute_branch(this.then_branch, args);
+            this.executeBranch(this.then_branch);
         } else if (this.else_branch) {
-            this.execute_branch(this.else_branch, args);
+            this.executeBranch(this.else_branch);
+        } else {
+            console.log("No else branch, continuing");
         }
     }
 
     evaluate_condition() {
-        if (this.condition instanceof ArithmeticOperationBlock) {
+        if (this.condition instanceof RawArithmeticOperationBlock) {
             return this.condition.execute();
         }
         
@@ -718,6 +874,141 @@ class IfBlock extends BaseBlock{
         if (iterations >= max_iterations) {
             printError('Количество вызовов превысило допустимое значение');
         }
+    }
+    isInThenBranch(block) {
+        if (!this.then_branch) return false;
+        
+        let current = this.then_branch;
+        while (current) {
+            if (current === block) return true;
+            current = current.next_block;
+        }
+        return false;
+    }
+
+    isInElseBranch(block) {
+        if (!this.else_branch) return false;
+        
+        let current = this.else_branch;
+        while (current) {
+            if (current === block) return true;
+            current = current.next_block;
+        }
+        return false;
+    }
+}
+
+function setupIfBlock(blockElement, blockInstance) {
+    blockElement.classList.add('if-block');
+    
+    updateIfBlockDisplay(blockElement, blockInstance);
+    
+    blockElement.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        showIfBranchConfiguration(blockElement, blockInstance);
+    });
+}
+
+function updateIfBlockDisplay(blockElement, blockInstance) {
+    blockElement.innerHTML = '';
+    
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'if-title';
+    titleDiv.textContent = 'Если';
+    blockElement.appendChild(titleDiv);
+    
+    const conditionDiv = document.createElement('div');
+    conditionDiv.className = 'if-condition';
+    
+    const conditionBlock = blockInstance.getConditionBlock();
+    if (conditionBlock && conditionBlock.element) {
+        const exprDisplay = conditionBlock.element.querySelector('.expression-display');
+        conditionDiv.innerHTML = `<span class="if-label">условие:</span> <span class="if-expr">${exprDisplay ? exprDisplay.textContent : 'выражение'}</span>`;
+    } else {
+        conditionDiv.innerHTML = '<span class="if-label">условие:</span> <span class="if-unset">не задано</span>';
+    }
+    
+    blockElement.appendChild(conditionDiv);
+    
+    const branchesDiv = document.createElement('div');
+    branchesDiv.className = 'if-branches';
+    
+    if (blockInstance.then_branch) {
+        branchesDiv.innerHTML += '<span class="if-then">✓ then</span>';
+    } else {
+        branchesDiv.innerHTML += '<span class="if-then">✗ then</span>';
+    }
+    
+    if (blockInstance.else_branch) {
+        branchesDiv.innerHTML += '<span class="if-else">✓ else</span>';
+    } else {
+        branchesDiv.innerHTML += '<span class="if-else">✗ else</span>';
+    }
+    
+    blockElement.appendChild(branchesDiv);
+}
+
+function showIfBranchConfiguration(blockElement, blockInstance) {
+    const dropZone = document.querySelector('.drop-zone');
+    const allBlocks = Array.from(dropZone.querySelectorAll('.block-item'));
+    
+    let message = "Настройка веток IF\n\n";
+    message += "Текущее условие: ";
+    
+    const conditionBlock = blockInstance.getConditionBlock();
+    if (conditionBlock && conditionBlock.element) {
+        const exprDisplay = conditionBlock.element.querySelector('.expression-display');
+        message += exprDisplay ? exprDisplay.textContent : 'задано';
+    } else {
+        message += "не задано (присоедините арифметический блок сверху)";
+    }
+    
+    message += "\n\nВетка THEN: " + (blockInstance.then_branch ? "задана" : "не задана");
+    message += "\nВетка ELSE: " + (blockInstance.else_branch ? "задана" : "не задана");
+    
+    message += "\n\nВыберите действие:\n";
+    message += "1. Указать начало ветки THEN\n";
+    message += "2. Указать начало ветки ELSE\n";
+    message += "3. Очистить ветку THEN\n";
+    message += "4. Очистить ветку ELSE\n";
+    message += "5. Отмена";
+    
+    const choice = prompt(message, "1");
+    
+    if (choice === "1") {
+        // Set THEN branch
+        const blockId = prompt("Введите ID блока начала ветки THEN (или перетащите блок и введите его ID):", 
+                                blockInstance.then_branch?.id || "");
+        if (blockId) {
+            const targetBlock = allBlocks.find(b => b.id === blockId || b.dataset.blockId === blockId);
+            if (targetBlock && targetBlock.blockInstance) {
+                blockInstance.set_then_branch(targetBlock.blockInstance);
+                updateIfBlockDisplay(blockElement, blockInstance);
+            } else {
+                alert("Блок не найден");
+            }
+        }
+    } else if (choice === "2") {
+        // Set ELSE branch
+        const blockId = prompt("Введите ID блока начала ветки ELSE:", 
+                                blockInstance.else_branch?.id || "");
+        if (blockId) {
+            const targetBlock = allBlocks.find(b => b.id === blockId || b.dataset.blockId === blockId);
+            if (targetBlock && targetBlock.blockInstance) {
+                blockInstance.set_else_branch(targetBlock.blockInstance);
+                updateIfBlockDisplay(blockElement, blockInstance);
+            } else {
+                alert("Блок не найден");
+            }
+        }
+    } else if (choice === "3") {
+        // Clear THEN branch
+        blockInstance.set_then_branch(null);
+        updateIfBlockDisplay(blockElement, blockInstance);
+    } else if (choice === "4") {
+        // Clear ELSE branch
+        blockInstance.set_else_branch(null);
+        updateIfBlockDisplay(blockElement, blockInstance);
     }
 }
 
@@ -954,6 +1245,11 @@ class PrintBlock extends BaseBlock {
         super(id, "print");
         this.expression = expression;
     }
+
+    setContent(content){
+        this.expression = content;
+    }
+
     execute() {
         const expr = this.expression.trim();
         //если является вводные данные строкой то просто выводим
@@ -969,6 +1265,56 @@ class PrintBlock extends BaseBlock {
             console.log("Вывод:", v);
         }
     }
+}
+
+function setupPrintBlock(blockElement, blockInstance) {
+    blockElement.classList.add('print-block');
+    
+    updatePrintBlockDisplay(blockElement, blockInstance);
+    
+    blockElement.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        showPrintPrompt(blockElement, blockInstance);
+    });
+}
+
+function updatePrintBlockDisplay(blockElement, blockInstance) {
+    blockElement.innerHTML = '';
+    
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'print-title';
+    titleDiv.textContent = 'Вывод';
+    blockElement.appendChild(titleDiv);
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'print-content';
+    
+    if (blockInstance.content) {
+        if (blockInstance.isString) {
+            contentDiv.innerHTML = `<span class="print-string">${blockInstance.content}</span>`;
+        } else {
+            contentDiv.innerHTML = `<span class="print-expression">${blockInstance.content}</span>`;
+        }
+    } else {
+        contentDiv.textContent = 'Дважды кликните для ввода';
+        contentDiv.style.opacity = '0.7';
+    }
+    
+    blockElement.appendChild(contentDiv);
+}
+
+function showPrintPrompt(blockElement, blockInstance) {
+    const message = "Введите текст или выражение для вывода:\n" +
+                    "• Текст в кавычках: \"Привет мир\"\n" +
+                    "• Выражение: 5 + 3 * 2\n" +
+                    "• Переменная: x";
+    
+    const content = prompt(message, blockInstance.content || "");
+    
+    if (content === null) return; // User cancelled
+    
+    blockInstance.setContent(content);
+    updatePrintBlockDisplay(blockElement, blockInstance);
 }
 
 function printOutput(text) {
@@ -1148,7 +1494,7 @@ class BlockManager {
         const id1 = getBlockId(block1);
         const id2 = getBlockId(block2);
 
-        console.log("Соединяем блоки: " + block1.type + " id: " + block1.id + " | " + block2.type + " id: " + block2.id);
+        console.log("Соединяем блоки: " + block1.blockInstance.type + " id: " + id1 + " | " + block2.type + " id: " + id2);
         
         // Получаем экземпляры блоков
         const block1Instance = block1.blockInstance;
@@ -1239,6 +1585,46 @@ class BlockManager {
         
         // Создаём соединение
         topInstance.add_next_block(bottomInstance);
+        if (topInstance instanceof IfBlock && bottomInstance instanceof RawArithmeticOperationBlock) {
+            if (bottomInstance.next_block) {
+                topInstance.set_then_branch(bottomInstance.next_block);
+                updateIfBlockDisplay(topBlock, topInstance);
+            }
+        }
+        console.log("After add_next_block - topInstance.next_block:", topInstance.next_block ? "set to " + topInstance.next_block.constructor.name : "null");
+
+        console.log("=== CONNECTION DEBUG ===");
+        console.log("topInstance type:", topInstance.constructor.name);
+        console.log("bottomInstance type:", bottomInstance.constructor.name);
+        console.log("topInstance.next_block:", topInstance.next_block ? topInstance.next_block.constructor.name : "null");
+        console.log("bottomInstance.past_block:", bottomInstance.past_block ? bottomInstance.past_block.constructor.name : "null");
+
+        if (topInstance instanceof IfBlock) {
+            console.log("TOP is IfBlock");
+            console.log("topInstance.getConditionBlock():", topInstance.getConditionBlock() ? "FOUND" : "NOT FOUND");
+            if (topInstance.getConditionBlock()) {
+                console.log("Condition block type:", topInstance.getConditionBlock().constructor.name);
+            }
+        }
+
+        if (bottomInstance instanceof IfBlock) {
+            console.log("BOTTOM is IfBlock");
+            console.log("bottomInstance.getConditionBlock():", bottomInstance.getConditionBlock() ? "FOUND" : "NOT FOUND");
+            if (bottomInstance.getConditionBlock()) {
+                console.log("Condition block type:", bottomInstance.getConditionBlock().constructor.name);
+            }
+        }
+        console.log("========================");
+
+        if (topInstance instanceof IfBlock) {
+            const topElement = topBlock;
+            updateIfBlockDisplay(topElement, topInstance);
+        }
+
+        if (bottomInstance instanceof IfBlock) {
+            const bottomElement = bottomBlock;
+            updateIfBlockDisplay(bottomElement, bottomInstance);
+        }
         
         // Сохраняем связь в connections
         if (!this.connections.has(id1)) this.connections.set(id1, []);
@@ -1441,6 +1827,13 @@ class DragDropManager {
                 if (!this.blockManager.areConnected(this.draggedBlock, block)) {
                     this.blockManager.connectBlocks(this.draggedBlock, block);
                     //соединение
+
+                    if (block.blockInstance instanceof IfBlock) {
+                        updateIfBlockDisplay(block, block.blockInstance);
+                    }
+                    if (this.draggedBlock.blockInstance instanceof IfBlock) {
+                        updateIfBlockDisplay(this.draggedBlock, this.draggedBlock.blockInstance);
+                    }
                 }
                 snapped = true; 
             }
@@ -1451,6 +1844,12 @@ class DragDropManager {
                 this.draggedBlock.style.top = (blockRect.bottom - dropZoneRect.top) + 'px';
                 if (!this.blockManager.areConnected(this.draggedBlock, block)) {
                     this.blockManager.connectBlocks(this.draggedBlock, block);
+                    if (block.blockInstance instanceof IfBlock) {
+                        updateIfBlockDisplay(block, block.blockInstance);
+                    }
+                    if (this.draggedBlock.blockInstance instanceof IfBlock) {
+                        updateIfBlockDisplay(this.draggedBlock, this.draggedBlock.blockInstance);
+                    }
                 }
                 snapped = true;
             }
@@ -1525,10 +1924,29 @@ class DragDropManager {
             baseBlock = new StartBlock(blockId, 'start');
         } else if (this.draggedBlock.classList.contains('end-block')) {
             baseBlock = new EndBlock(blockId, 'end');
+        } else if (this.draggedBlock.classList.contains('arithmetic-block')){
+            baseBlock = new RawArithmeticOperationBlock(blockId);
         } else if (this.draggedBlock.classList.contains('assign-block')){
             baseBlock = new AssignmentOperator(blockId);
+            setTimeout(() => {
+                const newBlockElement = this.dropZone.querySelector(`[data-block-id="${blockId}"]`);
+                if (newBlockElement) {
+                    newBlockElement.blockInstance = baseBlock;
+                    baseBlock.element = newBlockElement;
+                    setupAssignBlock(newBlockElement, baseBlock);
+                    showAssignPrompts(newBlockElement, baseBlock);
+                }
+            }, 100);
         } else if (this.draggedBlock.classList.contains('if-block')){
             baseBlock = new IfBlock(blockId);
+            setTimeout(() => {
+                const newBlockElement = this.dropZone.querySelector(`[data-block-id="${blockId}"]`);
+                if (newBlockElement) {
+                    newBlockElement.blockInstance = baseBlock;
+                    baseBlock.element = newBlockElement;
+                    setupIfBlock(newBlockElement, baseBlock); 
+                }
+            }, 100);
         } else if (this.draggedBlock.classList.contains('for-block')){
             baseBlock = new ForBlock(blockId);
         } else if (this.draggedBlock.classList.contains('while-block')){
@@ -1537,13 +1955,20 @@ class DragDropManager {
             baseBlock = new DeclareBlock(blockId);
         } else if (this.draggedBlock.classList.contains('print-block')){
             baseBlock = new PrintBlock(blockId);
+            setTimeout(() => {
+            const newBlockElement = this.dropZone.querySelector(`[data-block-id="${blockId}"]`);
+            if (newBlockElement) {
+                newBlockElement.blockInstance = baseBlock;
+                baseBlock.element = newBlockElement;
+                setupPrintBlock(newBlockElement, baseBlock);
+                showPrintPrompt(newBlockElement, baseBlock);
+            }
+        }, 100);
         } else{
             throw new Error("Неизвестный блок!");
         }
-
-            
         if (this.draggedBlock.parentNode === this.dropZone) {
-            console.log('Block moved within right zone');//блок в правой зоне
+            console.log('Block moved within right zone'); //блок в правой зоне
         } else {
             //клон блока из левого списка
             const newBlock = this.draggedBlock.cloneNode(true);
@@ -1559,6 +1984,10 @@ class DragDropManager {
             //обработка нового блока
             newBlock.addEventListener('dragstart', (e) => this.handleDragStart(e, newBlock));
             newBlock.addEventListener('dragend', () => this.handleDragEnd());
+
+            if (baseBlock instanceof RawArithmeticOperationBlock) {
+                setupArithmeticBlock(newBlock, baseBlock);
+            }
             
             this.dropZone.appendChild(newBlock); //добавление в правую зону
             newBlock.style.left = blockX + 'px';//позиция
@@ -1575,18 +2004,14 @@ class DragDropManager {
             visualId: newBlock.dataset.blockId,
             logicalId: baseBlock.id,
             type: baseBlock.type || baseBlock.constructor.name
-            });
+                });
         }
         this.blockManager.add_block(baseBlock);
         this.hideDropIndicator();
         // сбрасываем группу после drop
         this.draggedGroup = [];
         this.groupPositions = null;
-
-        // Отладочный код
-
     }
-    
     //создание кнопки-ручки для группового перетаскивания
     createGroupHandle(block) {
         const handle = document.createElement('div');

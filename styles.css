@@ -68,12 +68,359 @@ ul {
     background-color: #f94b06;
 }
 
-.assign-block{
-
+/* Временные 3 стиля */
+.block-item.arithmetic-block {
+    background-color: #ffd700;  
+    border: 2px solid #b8860b;
+    border-radius: 8px;
+    padding: 8px;
+    font-weight: bold;
 }
 
-.if-block{
+.arithmetic-block .expression-display {
+    font-size: 12px;
+    color: #333;
+    margin-top: 4px;
+    padding: 2px;
+    background-color: rgba(255, 255, 255, 0.5);
+    border-radius: 4px;
+    font-family: monospace;
+}
 
+.arithmetic-block input {
+    width: 90%;
+    padding: 4px;
+    margin-top: 4px;
+    border: 1px solid #b8860b;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+.assign-block {
+    background-color: #4a90e2 !important;
+    border: 2px solid #2a4f7c !important;
+    border-radius: 8px;
+    padding: 8px;
+    color: white;
+    min-width: 150px;
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+.assign-block:hover {
+    background-color: #5a9ef0 !important;
+    transform: scale(1.02);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.assign-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.8;
+    margin-bottom: 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 2px;
+}
+
+.assign-display {
+    font-size: 13px;
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+}
+
+.assign-var {
+    color: #ffd700;
+    font-weight: bold;
+}
+
+.assign-equals {
+    color: #ffffff;
+    opacity: 0.8;
+}
+
+.assign-expr {
+    color: #a0ffa0;
+}
+
+/* Make sure the block is draggable */
+.assign-block {
+    cursor: move !important;
+    user-select: none;
+}
+
+/* Style for incomplete block */
+.assign-block:not(:has(.assign-var)) .assign-display {
+    font-style: italic;
+    color: #cccccc;
+}
+/* If Block Styles */
+.if-block {
+    background-color: #9b59b6 !important;
+    border: 2px solid #6c3483 !important;
+    border-radius: 12px;
+    padding: 10px;
+    color: white;
+    min-width: 160px;
+    cursor: move;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    font-family: 'Tahoma', sans-serif;
+}
+
+.if-block:hover {
+    background-color: #a96dc2 !important;
+    transform: scale(1.02);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.if-title {
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.9;
+    margin-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    padding-bottom: 3px;
+    text-align: center;
+}
+
+.if-condition {
+    font-size: 12px;
+    background-color: rgba(0, 0, 0, 0.25);
+    padding: 5px 8px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    font-family: 'Courier New', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-left: 3px solid #f1c40f;
+}
+
+.if-label {
+    opacity: 0.8;
+    margin-right: 5px;
+    font-size: 11px;
+    color: #ecf0f1;
+}
+
+.if-expr {
+    color: #f1c40f;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.if-unset {
+    color: #ff9999;
+    font-style: italic;
+    font-size: 11px;
+}
+
+.if-branches {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    font-size: 11px;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+.if-then {
+    background-color: rgba(46, 204, 113, 0.25);
+    padding: 3px 10px;
+    border-radius: 12px;
+    color: #2ecc71;
+    font-weight: bold;
+    border: 1px solid rgba(46, 204, 113, 0.5);
+}
+
+.if-else {
+    background-color: rgba(231, 76, 60, 0.25);
+    padding: 3px 10px;
+    border-radius: 12px;
+    color: #e74c3c;
+    font-weight: bold;
+    border: 1px solid rgba(231, 76, 60, 0.5);
+}
+
+/* Visual indicator for condition connection (arithmetic block connected to if) */
+.block-item.arithmetic-block.connected-to-if {
+    outline: 2px solid #9b59b6;
+    outline-offset: 3px;
+    position: relative;
+}
+
+.block-item.arithmetic-block.connected-to-if::after {
+    content: "🔀";
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background-color: #9b59b6;
+    color: white;
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 10px;
+    border: 1px solid #6c3483;
+}
+
+/* Group drag handle customization for if block */
+.if-block.connected .group-drag-handle {
+    background-color: #f1c40f !important;
+}
+
+.if-block.connected .group-drag-handle:hover {
+    background-color: #f39c12 !important;
+}
+
+/* When if block is part of group drag */
+.if-block.group-dragging {
+    outline: 2px solid #f1c40f;
+    outline-offset: 3px;
+}
+
+/* Special styling for blocks inside then/else branches */
+.block-item.in-then-branch {
+    border-left: 4px solid #2ecc71 !important;
+}
+
+.block-item.in-else-branch {
+    border-left: 4px solid #e74c3c !important;
+}
+
+/* Configuration popup for if block */
+.if-config-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #2a2f3a;
+    border: 2px solid #9b59b6;
+    border-radius: 12px;
+    padding: 20px;
+    min-width: 350px;
+    z-index: 10000;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+    color: white;
+}
+
+.if-config-popup h3 {
+    color: #9b59b6;
+    margin-bottom: 15px;
+    font-size: 18px;
+    border-bottom: 1px solid #4a4f5a;
+    padding-bottom: 8px;
+}
+
+.if-config-section {
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: #1e222b;
+    border-radius: 6px;
+}
+
+.if-config-section h4 {
+    color: #ecf0f1;
+    margin-bottom: 10px;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.if-config-condition {
+    font-family: 'Courier New', monospace;
+    background-color: #0f1219;
+    padding: 8px;
+    border-radius: 4px;
+    color: #f1c40f;
+    border-left: 3px solid #f1c40f;
+}
+
+.if-config-branch {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+}
+
+.if-config-branch.then {
+    color: #2ecc71;
+}
+
+.if-config-branch.else {
+    color: #e74c3c;
+}
+
+.if-config-branch button {
+    background-color: #4a4f5a;
+    color: white;
+    border: none;
+    padding: 3px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.if-config-branch button:hover {
+    background-color: #5a5f6a;
+}
+
+.if-config-branch button.set {
+    background-color: #9b59b6;
+}
+
+.if-config-branch button.set:hover {
+    background-color: #a96dc2;
+}
+
+.if-config-branch button.clear {
+    background-color: #e74c3c;
+}
+
+.if-config-branch button.clear:hover {
+    background-color: #c0392b;
+}
+
+.if-config-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.if-config-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.if-config-btn.save {
+    background-color: #9b59b6;
+    color: white;
+}
+
+.if-config-btn.save:hover {
+    background-color: #a96dc2;
+}
+
+.if-config-btn.cancel {
+    background-color: #4a4f5a;
+    color: white;
+}
+
+.if-config-btn.cancel:hover {
+    background-color: #5a5f6a;
 }
 
 .for-block{
@@ -88,9 +435,53 @@ ul {
 
 }
 
-.print-block{
-    
+.print-block {
+    background-color: #3498db !important;
+    border: 2px solid #2980b9 !important;
+    border-radius: 8px;
+    padding: 8px;
+    color: white;
+    min-width: 150px;
+    cursor: move;
+    transition: all 0.2s ease;
 }
+
+.print-block:hover {
+    background-color: #5faee3 !important;
+    transform: scale(1.02);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.print-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.8;
+    margin-bottom: 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 2px;
+}
+
+.print-content {
+    font-size: 12px;
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+}
+
+.print-string {
+    color: #f1c40f;
+}
+
+.print-expression {
+    color: #2ecc71;
+}
+
 
 #sidebar{
     overflow-y: scroll; 
